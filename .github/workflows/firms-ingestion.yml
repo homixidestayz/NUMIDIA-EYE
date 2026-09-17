@@ -1,0 +1,34 @@
+name: NASA FIRMS Ingestion
+
+on:
+  workflow_dispatch:
+
+jobs:
+  download-firms:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download NASA FIRMS data
+        env:
+          FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
+        run: |
+          mkdir -p data/raw/firms
+
+          curl -fL \
+            "https://firms.modaps.eosdis.nasa.gov/api/area/csv/${FIRMS_MAP_KEY}/VIIRS_NOAA21_NRT/-9,18,12,38/1" \
+            -o data/raw/firms/viirs_noaa21_1d.csv
+
+          echo "Downloaded FIRMS data:"
+          wc -l data/raw/firms/viirs_noaa21_1d.csv
+
+          echo "First 5 rows:"
+          head -n 5 data/raw/firms/viirs_noaa21_1d.csv
+
+      - name: Upload FIRMS dataset
+        uses: actions/upload-artifact@v4
+        with:
+          name: firms-viirs-noaa21
+          path: data/raw/firms/viirs_noaa21_1d.csv
