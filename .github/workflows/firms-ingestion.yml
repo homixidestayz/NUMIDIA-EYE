@@ -9,7 +9,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download NASA FIRMS data
         env:
@@ -28,7 +28,7 @@ jobs:
           head -n 5 data/raw/firms/viirs_noaa21_1d.csv
 
       - name: Upload FIRMS dataset
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: firms-viirs-noaa21
           path: data/raw/firms/viirs_noaa21_1d.csv
