@@ -357,3 +357,147 @@ def verify_dataset(labeled: pd.DataFrame, input_ids: set,
                    "ok": len(unl) == 0,
                    "detail": f"labeled without split: {len(unl)}"})
     return checks
+
+
+# ---- v2 additions: folds, feature contract ---------------------------------
+# Proposed model inputs: thermal/radiometric/sensor-context ONLY.
+MODEL_FEATURES_V1 = [
+    "bright_ti4", "bright_ti5", "f_bt_diff",      # band temperatures + contrast
+    "frp", "f_frp",                               # fire radiative power
+    "confidence", "f_confidence",                 # FIRMS confidence (feature, never label)
+    "scan", "track",                              # pixel geometry
+    "satellite", "type",                          # sensor context (one-hot at train time)
+]
+# Banned from model inputs (stratification/grouping/reporting only).
+BANNED_FEATURES = [
+    "lat", "lon", "wilaya_code", "wilaya_name", "strat_lat_band",
+    "acq_datetime", "acq_date", "acq_time", "fetched_at",
+    "detection_id", "source", "source_url",
+    "daynight", "f_daynight", "f_hour_utc", "f_month", "f_doy",
+]
+NORTH_LAT = 34.0  # stratification band cut (mirrors audit)
+
+
+def add_strat_band(df: pd.DataFrame) -> pd.DataFrame:
+    """Add strat_lat_band (north/south). Stratification-only, never a feature."""
+    out = df.copy()
+    out["strat_lat_band"] = np.where(
+        pd.to_numeric(out["lat"], errors="coerce") >= NORTH_LAT, "north", "south")
+    return out
+
+
+def assign_folds(df: pd.DataFrame, k: int = 5) -> pd.DataFrame:
+    """Geo-grouped folds for model selection (train rows only).
+
+    Whole wilayas stay together; wilayas sharing an event_id are merged first
+    (union-find), then groups go to folds greedily by size. val/test/excluded
+    rows get no fold. Returns the frame with a fold column.
+    """
+    out = df.copy()
+    out["fold"] = None
+    tr = out[out["split"] == "train"].copy()
+    if tr.empty:
+        return out
+    wilayas = sorted(tr["wilaya_name"].dropna().unique().tolist())
+    parent = {w: w for w in wilayas}
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    for _, grp in tr.groupby("event_id"):
+        ws = sorted(grp["wilaya_name"].dropna().unique().tolist())
+        for w in ws[1:]:
+            ra, rb = find(ws[0]), find(w)
+            if ra != rb:
+                parent[rb] = ra
+    groups: dict[str, list] = {}
+    for w in wilayas:
+        groups.setdefault(find(w), []).append(w)
+    counts = {g: int(tr["wilaya_name"].isin(ws).sum()) for g, ws in groups.items()}
+    # Class-balanced greedy: keep wilaya/event purity, but spread fire,
+    # non-fire and uncertain loads across folds so every fold can score
+    # every class. Score = summed filled-fraction across classes.
+    class_counts = {
+        g: {c: int(((tr["wilaya_name"].isin(ws)) & (tr["label"] == c)).sum())
+            for c in ("fire", "non-fire", "uncertain")}
+        for g, ws in groups.items()
+    }
+    totals = {c: int((tr["label"] == c).sum()) for c in ("fire", "non-fire", "uncertain")}
+    loads = {i: {"fire": 0, "non-fire": 0, "uncertain": 0} for i in range(k)}
+    group_fold: dict[str, int] = {}
+
+    def _score(i: int, g: str) -> float:
+        s = 0.0
+        for c in totals:
+            if totals[c]:
+                s += (loads[i][c] + class_counts[g][c]) / totals[c]
+        return s
+
+    for g in sorted(counts, key=counts.get, reverse=True):  # noqa: E203
+        i = min(range(k), key=lambda j: _score(j, g))
+        group_fold[g] = i
+        for c in loads[i]:
+            loads[i][c] += class_counts[g][c]
+    w2f = {w: group_fold[find(w)] for w in wilayas}
+    mapped = tr["wilaya_name"].map(w2f)
+    if mapped.isna().any():
+        raise ValueError("fold assignment left train rows unassigned")
+    out.loc[out["split"] == "train", "fold"] = mapped.astype(int).astype(str)
+    return out
+
+
+def verify_v2(labeled: pd.DataFrame) -> list:
+    """V2 structural checks: folds, feature contract, stratification fields."""
+    checks = []
+    lab = labeled
+    tr = lab[lab["split"] == "train"]
+
+    wxf = tr.groupby("wilaya_name")["fold"].nunique()
+    bad_w = wxf[wxf > 1].index.tolist()
+    checks.append({"check": "V8a: no wilaya spans two folds (geographic blocking)",
+                   "ok": len(bad_w) == 0, "detail": f"offenders: {bad_w}"})
+
+    exf = tr.groupby("event_id")["fold"].nunique()
+    bad_e = exf[exf > 1].index.tolist()
+    checks.append({"check": "V8b: no train event spans two folds",
+                   "ok": len(bad_e) == 0,
+                   "detail": f"offenders: {bad_e[:5]} (total {len(bad_e)})"})
+
+    banned_hit = sorted(set(MODEL_FEATURES_V1) & set(BANNED_FEATURES))
+    missing = sorted(set(MODEL_FEATURES_V1) - set(lab.columns))
+    checks.append({"check": "V9: proposed features exclude all banned fields "
+                            "and exist in the dataset",
+                   "ok": len(banned_hit) == 0 and len(missing) == 0,
+                   "detail": f"banned-in-features: {banned_hit}; missing: {missing}"})
+
+    no_fold = tr[tr["fold"].isna()]
+    fold_elsewhere = lab[(lab["split"] != "train") & lab["fold"].notna()]
+    noband = lab[lab["strat_lat_band"].isna()]
+    checks.append({"check": "V10: folds cover exactly the train rows; "
+                            "strat band present everywhere",
+                   "ok": len(no_fold) == 0 and len(fold_elsewhere) == 0 and len(noband) == 0,
+                   "detail": f"train w/o fold: {len(no_fold)}, non-train w/ fold: "
+                             f"{len(fold_elsewhere)}, w/o band: {len(noband)}"})
+
+    # Informational (not a failure): the same PHYSICAL flare field can appear
+    # in two cohorts under different catalog-year site ids (e.g. VNF:2021:x
+    # vs VNF:2024:y). Coordinates are banned from model inputs, so this cannot
+    # become location memorization; it is quantified here, not hidden.
+    nf = lab[lab["label"] == "non-fire"]
+    shared = set()
+    if len(nf):
+        cells = (nf["lat"].round(2).astype(str) + "|" + nf["lon"].round(2).astype(str))
+        by_split = {s: set(cells[nf["split"] == s].unique()) for s in ("train", "val", "test")}
+        keys = [k for k in by_split if by_split[k]]
+        for i in range(len(keys)):
+            for j in range(i + 1, len(keys)):
+                shared |= by_split[keys[i]] & by_split[keys[j]]
+    checks.append({"check": "INFO: physical non-fire site cells shared across splits "
+                            "(same flare field, different catalog years; "
+                            "coordinates banned from features)",
+                   "ok": True,
+                   "detail": f"shared ~1 km non-fire cells across splits: {len(shared)}"})
+    return checks

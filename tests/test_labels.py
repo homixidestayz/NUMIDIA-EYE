@@ -226,3 +226,84 @@ def test_verify_dataset_catches_untraced_row():
     by_name = {c["check"]: c for c in checks}
     v5 = [c for c in checks if c["check"].startswith("V5")][0]
     assert v5["ok"] is False
+
+def test_strat_band_split():
+    import pandas as pd
+    df = pd.DataFrame({"lat": [36.0, 33.9, 28.0]})
+    out = L.add_strat_band(df)
+    assert out["strat_lat_band"].tolist() == ["north", "south", "south"]
+
+
+def test_assign_folds_balances_classes():
+    import pandas as pd
+    rows = ([{"wilaya_name": "N1", "event_id": "EV-N1", "split": "train", "label": "fire"}] * 6
+            + [{"wilaya_name": "N2", "event_id": "EV-N2", "split": "train", "label": "fire"}] * 6
+            + [{"wilaya_name": "S1", "event_id": "EV-S1", "split": "train", "label": "non-fire"}] * 6
+            + [{"wilaya_name": "S2", "event_id": "EV-S2", "split": "train", "label": "non-fire"}] * 6)
+    out = L.assign_folds(pd.DataFrame(rows), k=2)
+    for f in ("0", "1"):
+        sub = out[out["fold"] == f]
+        assert (sub["label"] == "fire").sum() > 0, f"fold {f} has no fire rows"
+        assert (sub["label"] == "non-fire").sum() > 0, f"fold {f} has no non-fire rows"
+    assert (out.groupby("wilaya_name")["fold"].nunique() == 1).all()
+
+
+def test_assign_folds_wilaya_pure():
+    import pandas as pd
+    rows = []
+    for i, w in enumerate(["A", "A", "B", "C", "D", "E", "F"]):
+        rows.append({"wilaya_name": w, "event_id": f"EV-{w}-{i}",
+                     "split": "train", "label": "fire"})
+    rows.append({"wilaya_name": "A", "event_id": "EV-X",
+                 "split": "val", "label": "fire"})
+    df = pd.DataFrame(rows)
+    out = L.assign_folds(df, k=3)
+    tr = out[out["split"] == "train"]
+    assert tr["fold"].notna().all()
+    assert (tr.groupby("wilaya_name")["fold"].nunique() == 1).all()
+    assert out.loc[out["split"] != "train", "fold"].isna().all()
+    assert set(tr["fold"].unique()) <= {"0", "1", "2"}
+
+
+def test_assign_folds_merges_event_sharing_wilayas():
+    import pandas as pd
+    df = pd.DataFrame([
+        {"wilaya_name": "A", "event_id": "EV-1", "split": "train", "label": "fire"},
+        {"wilaya_name": "B", "event_id": "EV-1", "split": "train", "label": "fire"},
+        {"wilaya_name": "C", "event_id": "EV-2", "split": "train", "label": "fire"},
+    ])
+    out = L.assign_folds(df, k=5)
+    fa = out.loc[out["wilaya_name"] == "A", "fold"].iloc[0]
+    fb = out.loc[out["wilaya_name"] == "B", "fold"].iloc[0]
+    assert fa == fb  # shared event keeps wilayas in one fold
+
+
+def test_feature_contract_bans_location_and_time():
+    for banned in ("lat", "lon", "wilaya_name", "daynight", "f_hour_utc",
+                   "acq_date", "detection_id", "source"):
+        assert banned in L.BANNED_FEATURES, banned
+        assert banned not in L.MODEL_FEATURES_V1, banned
+    for feat in ("bright_ti4", "bright_ti5", "f_bt_diff", "frp", "confidence"):
+        assert feat in L.MODEL_FEATURES_V1, feat
+
+
+def test_verify_v2_catches_fold_leak():
+    import pandas as pd
+    df = pd.DataFrame([
+        {"wilaya_name": "A", "event_id": "EV-1", "split": "train",
+         "label": "fire", "fold": "0", "strat_lat_band": "north",
+         "bright_ti4": 330.0, "bright_ti5": 300.0, "f_bt_diff": 30.0,
+         "frp": 5.0, "f_frp": 5.0, "confidence": 0.6, "f_confidence": 0.6,
+         "scan": 0.4, "track": 0.4, "satellite": "N", "type": "0"},
+        {"wilaya_name": "A", "event_id": "EV-1", "split": "train",
+         "label": "fire", "fold": "1", "strat_lat_band": "north",
+         "bright_ti4": 331.0, "bright_ti5": 301.0, "f_bt_diff": 30.0,
+         "frp": 6.0, "f_frp": 6.0, "confidence": 0.6, "f_confidence": 0.6,
+         "scan": 0.4, "track": 0.4, "satellite": "N", "type": "0"},
+    ])
+    checks = L.verify_v2(df)
+    by_name = {c["check"][:4]: c for c in checks}
+    assert by_name["V8a:"]["ok"] is False  # wilaya A spans folds 0 and 1
+    assert by_name["V8b:"]["ok"] is False  # event EV-1 spans folds
+    assert by_name["V9: "]["ok"] is True
+    assert by_name["V10:"]["ok"] is True

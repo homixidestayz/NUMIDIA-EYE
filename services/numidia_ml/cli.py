@@ -485,6 +485,239 @@ def cmd_audit(args: argparse.Namespace) -> int:
     return 0 if sha_before == sha_after else 2
 
 
+def cmd_build_v2(args: argparse.Namespace) -> int:
+    """V2 assembly: v1 rules + 2022/2023 cohorts + folds + feature contract.
+
+    v1 files are never modified (read-only inputs where reused). New outputs:
+    firms_labels_v2.csv, firms_excluded_v2.csv, manifest_v2.json,
+    docs/dataset-report-v2.md. No model training here.
+    """
+    from numidia_core import db as db_mod
+    from numidia_core.config import DB_PATH
+    from numidia_core.enrichment import clip_to_algeria
+    from numidia_core.processing import derive_features
+    from numidia_ml import ground_truth as gt
+    from numidia_ml import labels as L
+    from numidia_ml import report as R
+
+    history_dir = Path(args.history)
+    gt_dir = Path(args.ground_truth)
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    manifest: dict = {"dataset_version": "v2",
+                      "rules_version": L.RULES_VERSION,
+                      "generated_at": datetime.now(timezone.utc).isoformat()}
+    try:
+        git_bin = shutil.which("git") or r"C:\Program Files\Git\cmd\git.exe"
+        manifest["code_commit"] = subprocess.check_output(
+            [git_bin, "rev-parse", "--short", "HEAD"], cwd=REPO_ROOT,
+            text=True).strip()
+    except (subprocess.SubprocessError, OSError):
+        manifest["code_commit"] = "unknown"
+    gt_manifest = []
+
+    ems_polys, ems_stats = gt.load_ems_polygons(gt_dir / "emsr533")
+    ems_aois = gt.load_ems_aois(gt_dir / "emsr533")
+    manifest.update({f"ems_{k}": v for k, v in ems_stats.items()})
+    for prod in gt.EMS_PRODUCTS:
+        gt_manifest.append({
+            "key": f"P1-EMSR533:{prod['aoi']}:{prod['product']}",
+            "type": "Copernicus EMS Rapid Mapping burnt-area polygons (human-validated)",
+            "records": sum(1 for p in ems_polys if p["aoi"] == prod["aoi"]
+                           and p["product"] == prod["product"]),
+            "url": f"{gt.EMS_BASE_URL}/{prod['file']}",
+            "sha256": gt.sha256_file(gt_dir / "emsr533" / prod["file"]),
+        })
+    burnt = [{"geometry": p["geometry"], "start": gt.EMS_EVENT_WINDOW[0],
+              "end": gt.EMS_EVENT_WINDOW[1], "gt_id": p["ground_truth_id"],
+              "source": "P1-EMSR533"} for p in ems_polys]
+    aois = [{"geometry": a["geometry"], "aoi": a["aoi"],
+             "start": gt.EMS_EVENT_WINDOW[0], "end": gt.EMS_EVENT_WINDOW[1]}
+            for a in ems_aois]
+    print(f"[P1] {len(burnt)} burnt polygons, {len(aois)} AOIs", flush=True)
+
+    sites_by_year: dict[int, pd.DataFrame] = {}
+    for year, fname in sorted(gt.VNF_FILES.items()):
+        local = gt_dir / "vnf" / f"flare_{year}.xlsx"
+        sites, stats = gt.load_vnf_sites(local, year)
+        sites_by_year[year] = sites
+        gt_manifest.append({
+            "key": f"N1-VNF:{year}",
+            "type": "EOG VIIRS Nightfire annual gas-flare survey (SWIR pyrometry)",
+            "records": stats["algeria_sites"],
+            "url": f"{gt.VNF_BASE_URL}/{fname}",
+            "sha256": gt.sha256_file(local),
+        })
+    manifest["vnf_sites"] = len(sites_by_year[max(sites_by_year)])
+    print(f"[N1] {manifest['vnf_sites']} Algeria flare sites "
+          f"({max(sites_by_year)} catalog)", flush=True)
+
+    effis_zip = gt_dir / "effis" / args.effis_file
+    gdf, effis_stats = gt.load_effis_shapezip(effis_zip)
+    effis_sink: dict = {}
+    effis_items = _effis_items(gdf, effis_sink)
+    manifest.update(effis_sink)
+    gt_manifest.append({
+        "key": "P2-EFFIS:MODIS-seasonal (2016-2026 as published)",
+        "type": "EFFIS Rapid Damage Assessment burnt-area DB (MODIS, WFS SHAPEZIP)",
+        "records": effis_stats["features"],
+        "url": ("https://maps.effis.emergency.copernicus.eu/effis?service=WFS"
+                "&request=getfeature&typename=ms:modis.ba.poly&version=1.1.0"
+                "&outputformat=SHAPEZIP"),
+        "sha256": gt.sha256_file(effis_zip),
+    })
+    burnt.extend(effis_items)
+    print(f"[P2] {len(effis_items)} DZ polygons with usable dates "
+          f"(of {effis_stats['features']} WFS features)", flush=True)
+
+    # ---- H1 review: suitable northern hard-negative sites -----------------
+    review = pd.read_csv(args.review)
+    suitable = set(review.loc[review["suitable_hard_negative"].astype(str).str.lower() == "yes",
+                              "site_id"].tolist())
+    manifest["h1_review"] = {
+        "file": str(args.review),
+        "sites_reviewed": len(review),
+        "confirmed_suitable": len(suitable),
+        "unconfirmed": int((review["confirmation_status"] != "CONFIRMED").sum()),
+    }
+    print(f"[H1] {len(suitable)}/{len(review)} northern sites confirmed suitable",
+          flush=True)
+
+    # ---- FIRMS inputs ------------------------------------------------------
+    hist = _load_history_frames(history_dir)
+    hist = clip_to_algeria(derive_features(hist))[0]
+    hist["acq_year"] = pd.to_datetime(hist["acq_datetime"], utc=True).dt.year
+    live_rows = db_mod.load_detection_rows(limit=100000, path=args.db or DB_PATH)
+    live = pd.DataFrame(live_rows)
+    for col in ("acq_datetime", "fetched_at"):
+        if col in live.columns:
+            live[col] = pd.to_datetime(live[col], utc=True)
+    print(f"[FIRMS] history {len(hist)} + live {len(live)} rows", flush=True)
+
+    det2026 = pd.concat([hist[hist["acq_year"] == 2026], live], ignore_index=True)
+    cohorts = []
+    for det_year in (2021, 2022, 2023):
+        part = hist[hist["acq_year"] == det_year].copy()
+        use = {y: sites_by_year[y] for y in sorted(sites_by_year) if y <= det_year}
+        cohorts.append((str(det_year), part, use, max(use)))
+    cohorts.append(("2026", det2026,
+                    {y: sites_by_year[y] for y in (2021, 2022, 2023, 2024)}, 2024))
+    manifest["firms_history_split"] = "; ".join(
+        f"{name}: {len(part)} rows" for name, part, _, _ in cohorts)
+
+    all_labeled, all_excluded, total = [], [], None
+    all_persistent_ids: set = set()
+    for name, det, sy, cat_year in cohorts:
+        if det.empty:
+            print(f"[{name}] no rows - skipped", flush=True)
+            continue
+        persistent = L.mark_persistent(sy)
+        all_persistent_ids.update(persistent["site_id"].tolist())
+        manifest[f"vnf_persistent_{name}"] = (
+            f"{int(persistent['persistent'].sum())}/{len(persistent)} sites")
+        lab, exc, counts = L.build_dataset(
+            det, burnt=burnt, aois=aois, flare_sites=persistent,
+            flare_catalog_year=cat_year)
+        lab["cohort"] = name
+        exc["cohort"] = name
+        all_labeled.append(lab)
+        all_excluded.append(exc)
+        print(f"[{name}] +{counts['positive']}/-{counts['negative']}/"
+              f"~{counts['uncertain']}/x{counts['excluded']}/"
+              f"dup{counts['duplicates']}", flush=True)
+        if total is None:
+            total = dict(counts)
+        else:
+            for k in ("input", "positive", "negative", "uncertain", "excluded",
+                      "labeled", "duplicates", "conflicts", "fire_pre_dedup",
+                      "nonfire_pre_dedup", "uncertain_pre_dedup"):
+                total[k] = total.get(k, 0) + counts.get(k, 0)
+    if not all_labeled:
+        print("[ERROR] no cohorts produced labels", flush=True)
+        return 2
+    labeled = pd.concat(all_labeled, ignore_index=True)
+    excluded = pd.concat(all_excluded, ignore_index=True)
+    labeled = L.add_event_id(labeled)
+    labeled = L.assign_split(labeled)
+    labeled = L.add_strat_band(labeled)
+    excluded = L.add_strat_band(excluded)
+    labeled = L.assign_folds(labeled, k=5)
+
+    input_ids = set(hist["detection_id"].tolist()) | set(live["detection_id"].tolist())
+    verification = L.verify_dataset(labeled, input_ids, all_persistent_ids)
+    verification.extend(L.verify_v2(labeled))
+    print("--- verification ---", flush=True)
+    failed = 0
+    for v in verification:
+        mark = "PASS" if v["ok"] else "FAIL"
+        if not v["ok"]:
+            failed += 1
+        print(f"[{mark}] {v['check']} :: {v['detail']}", flush=True)
+    if failed:
+        print(f"[ERROR] {failed} verification check(s) failed - "
+              f"dataset NOT written", flush=True)
+        return 2
+
+    # ---- hard-negative + stratification summaries --------------------------
+    h1_ref = labeled[labeled["ground_truth_id"].isin(suitable)]
+    hard_neg = h1_ref[h1_ref["label"] == "non-fire"]
+    manifest["hard_negatives_h1"] = {
+        "suitable_sites": len(suitable),
+        "distinct_suitable_matched": int(h1_ref["ground_truth_id"].nunique()),
+        "rows_at_suitable": int(len(h1_ref)),
+        "nonfire_at_suitable": int(len(hard_neg)),
+    }
+    split_counts = labeled.groupby(["split", "label"]).size().to_dict()
+    cohort_table = labeled.groupby(["cohort", "label"]).size().reset_index(name="count")
+    fold_table = labeled[labeled["split"] == "train"].groupby(["fold", "label"]).size().reset_index(name="count")
+    band_table = labeled.groupby(["strat_lat_band", "label"]).size().reset_index(name="count")
+    daynight_table = labeled.groupby([
+        labeled["daynight"].astype(str).str.upper().str[0], "label"]).size().reset_index(name="count")
+    sat_table = labeled.groupby(["satellite", "label"]).size().reset_index(name="count")
+
+    dataset_path = out_dir / "firms_labels_v2.csv"
+    excluded_path = out_dir / "firms_excluded_v2.csv"
+    labeled.to_csv(dataset_path, index=False)
+    excluded.to_csv(excluded_path, index=False)
+    manifest["ground_truth"] = gt_manifest
+    manifest["counts"] = total
+    v1_path = out_dir / "firms_labels_v1.csv"
+    if v1_path.exists():
+        manifest["v1_sha256"] = gt.sha256_file(v1_path)
+    manifest["dataset"] = str(dataset_path)
+    manifest["dataset_rows"] = len(labeled)
+    manifest["dataset_sha256"] = gt.sha256_file(dataset_path)
+    manifest["model_features_v1"] = L.MODEL_FEATURES_V1
+    manifest["banned_features"] = L.BANNED_FEATURES
+    manifest["splits"] = {f"{s}/{l}": int(c) for (s, l), c in split_counts.items()}
+    manifest["verification"] = verification
+    (out_dir / "manifest_v2.json").write_text(
+        json.dumps(manifest, indent=2, default=str))
+
+    rules = {"version": L.RULES_VERSION,
+             "flare_radius_m": L.FLARE_RADIUS_M,
+             "flare_ring_m": L.FLARE_RING_M,
+             "site_persist_m": L.SITE_PERSIST_M,
+             "u3_days": L.U3_DAYS,
+             "dedup_decimals": L.DEDUP_DECIMALS}
+    R.write_report_v2(
+        Path(args.report), counts=total, manifest=manifest, labeled=labeled,
+        rules=rules, split_counts=split_counts, cohort_table=cohort_table,
+        fold_table=fold_table, band_table=band_table,
+        daynight_table=daynight_table, sat_table=sat_table,
+        verification=verification,
+        ems_matches=int((labeled["label_source"] == "P1-EMSR533").sum()),
+        effis_matches=int((labeled["label_source"] == "P2-EFFIS").sum()),
+        vnf_matches=int((labeled["label_source"] == "N1-flare").sum()),
+        distinct_flare_sites=int(
+            labeled[labeled["ground_truth_id"].str.startswith("VNF", na=False)]
+            ["ground_truth_id"].nunique()),
+        excluded_reasons=excluded["exclude_reason"].value_counts().to_dict())
+    print(f"[OK] v2: {len(labeled)} labeled + {len(excluded)} excluded -> {dataset_path}")
+    print(f"     report -> {args.report}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="numidia_ml", description="NUMIDIA verifier labeling pipeline")
@@ -510,6 +743,17 @@ def main(argv: list[str] | None = None) -> int:
     pb.add_argument("--out", default=str(DEFAULT_OUT))
     pb.add_argument("--report", default=str(DEFAULT_REPORT))
     pb.set_defaults(func=cmd_build)
+
+    pv2 = sub.add_parser("build-v2", help="assemble v2 dataset (folds, bans, H1, 2022/23 cohorts)")
+    pv2.add_argument("--history", default=str(DEFAULT_HISTORY))
+    pv2.add_argument("--ground-truth", default=str(DEFAULT_GT))
+    pv2.add_argument("--effis-file",
+                     default="effis_burnt_areas_current season_WFS.zip")
+    pv2.add_argument("--review", default=str(DEFAULT_OUT / "north_sites_review.csv"))
+    pv2.add_argument("--db", default=None, help="live DB path (read-only)")
+    pv2.add_argument("--out", default=str(DEFAULT_OUT))
+    pv2.add_argument("--report", default=str(REPO_ROOT / "docs" / "dataset-report-v2.md"))
+    pv2.set_defaults(func=cmd_build_v2)
 
     pa = sub.add_parser("audit", help="dataset-bias audit (analysis only, v1 read-only)")
     pa.add_argument("--dataset", default=str(DEFAULT_OUT / "firms_labels_v1.csv"))
