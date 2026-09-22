@@ -39,8 +39,8 @@ def test_normalize_full_schema():
     expected = {
         "detection_id", "lat", "lon", "acq_datetime", "acq_date", "acq_time",
         "satellite", "instrument", "confidence", "confidence_raw", "bright_ti4",
-        "bright_ti5", "scan", "track", "frp", "daynight", "version", "source",
-        "source_url", "fetched_at",
+        "bright_ti5", "scan", "track", "frp", "daynight", "version", "type",
+        "source", "source_url", "fetched_at",
     }
     assert expected <= set(df.columns)
 

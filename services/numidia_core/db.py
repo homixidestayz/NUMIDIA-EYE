@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS detections (
   frp REAL NOT NULL DEFAULT 0,
   daynight TEXT,
   version TEXT,
+  type TEXT,
   source TEXT NOT NULL,
   source_url TEXT,
   fetched_at TEXT NOT NULL,
@@ -71,7 +72,7 @@ CREATE TABLE IF NOT EXISTS ingest_runs (
 DET_COLUMNS = [
     "detection_id", "lat", "lon", "acq_datetime", "acq_date", "acq_time",
     "satellite", "instrument", "confidence", "confidence_raw", "bright_ti4",
-    "bright_ti5", "scan", "track", "frp", "daynight", "version", "source",
+    "bright_ti5", "scan", "track", "frp", "daynight", "version", "type", "source",
     "source_url", "fetched_at", "wilaya_code", "wilaya_name",
     "f_bt_diff", "f_frp", "f_confidence", "f_hour_utc", "f_month",
     "f_doy", "f_daynight",
@@ -99,6 +100,11 @@ def init_db(path: Path | str | None = None) -> Path:
     db_path = resolve_db_path(path)
     with connect(db_path) as conn:
         conn.executescript(SCHEMA)
+        # lightweight migration for pre-existing databases
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(detections)").fetchall()}
+        if "type" not in cols:
+            conn.execute("ALTER TABLE detections ADD COLUMN type TEXT")
+        conn.commit()
     return db_path
 
 

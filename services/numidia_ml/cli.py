@@ -1,0 +1,387 @@
+"""Labeling-pipeline CLI. Two steps, both auditable:
+
+    python -m numidia_ml.cli pull-history --start 2021-08-08 --end 2021-08-22
+    python -m numidia_ml.cli build
+
+pull-history uses the keyed NRT API with explicit DATEs (history use only;
+production ingestion is untouched). build assembles the labeled dataset +
+dataset report from ground truth + history + live-DB rows (read-only).
+No model is trained or registered here.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import shutil
+import subprocess
+from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
+
+import pandas as pd
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+assert (REPO_ROOT / "pyproject.toml").exists(), f"bad REPO_ROOT: {REPO_ROOT}"
+DEFAULT_HISTORY = REPO_ROOT / "data" / "labels" / "firms_history"
+DEFAULT_GT = REPO_ROOT / "data" / "labels" / "ground_truth"
+DEFAULT_OUT = REPO_ROOT / "data" / "labels"
+DEFAULT_REPORT = REPO_ROOT / "docs" / "dataset-report-v1.md"
+
+
+def _daterange(start: str, end: str):
+    s = datetime.strptime(start, "%Y-%m-%d").date()
+    e = datetime.strptime(end, "%Y-%m-%d").date()
+    if e < s:
+        raise ValueError("end must be >= start")
+    d = s
+    while d <= e:
+        yield d.isoformat()
+        d += timedelta(days=1)
+
+
+def cmd_pull_history(args: argparse.Namespace) -> int:
+    from numidia_core import firms as firms_mod
+    from numidia_core.config import FIRMS_MAP_KEY
+
+    key = (args.map_key or FIRMS_MAP_KEY).strip()
+    if not key:
+        print("[UNAVAILABLE] FIRMS_MAP_KEY required for history pulls", flush=True)
+        return 2
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    sources = [s.strip() for s in args.sources.split(",") if s.strip()]
+    manifest = {"start": args.start, "end": args.end, "sources": sources,
+                "calls": [], "rows": 0, "failures": 0}
+    fetched_at = datetime.now(timezone.utc)
+    for day in _daterange(args.start, args.end):
+        for src in sources:
+            call = {"date": day, "source": src}
+            try:
+                raw = firms_mod.fetch_nrt_area(map_key=key, sources=[src],
+                                               day=1, date=day)
+            except Exception as exc:  # noqa: BLE001 - record, continue
+                call["status"] = "error"
+                call["message"] = firms_mod.redact_key_from_text(str(exc), key)[:300]
+                manifest["failures"] += 1
+                manifest["calls"].append(call)
+                print(f"[{day} {src}] ERROR {call['message']}", flush=True)
+                continue
+            if raw.empty:
+                call["status"] = "empty"
+                manifest["calls"].append(call)
+                print(f"[{day} {src}] empty", flush=True)
+                continue
+            norm = firms_mod.normalize_raw(
+                raw.drop(columns=["_firms_source", "_firms_url"]),
+                source=src,
+                source_url=firms_mod.redact_url(raw["_firms_url"].iloc[0], key),
+                fetched_at=fetched_at)
+            norm = firms_mod.validate(norm)
+            dest = out / f"{day}_{src}.parquet"
+            norm.to_parquet(dest, index=False)
+            call["status"] = "ok"
+            call["rows"] = len(norm)
+            call["file"] = dest.name
+            manifest["rows"] += len(norm)
+            manifest["calls"].append(call)
+            print(f"[{day} {src}] {len(norm)} rows -> {dest.name}", flush=True)
+    (out / "manifest.json").write_text(json.dumps(manifest, indent=2, default=str))
+    print(f"[OK] {manifest['rows']} history rows, "
+          f"{manifest['failures']} failures (recorded, not hidden)")
+    return 0 if manifest["rows"] else 2
+
+
+def _load_history_frames(history_dir: Path) -> pd.DataFrame:
+    files = sorted(history_dir.glob("*.parquet"))
+    if not files:
+        raise FileNotFoundError(f"no history parquet in {history_dir} "
+                                "(run pull-history first)")
+    frames = [pd.read_parquet(f) for f in files]
+    df = pd.concat(frames, ignore_index=True)
+    for col in ("acq_datetime", "fetched_at"):
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], utc=True)
+    return df
+
+
+def _effis_items(gdf, stats_sink: dict) -> list[dict]:
+    """DZ polygons with per-polygon windows; unusable rows counted, not guessed."""
+    from shapely.validation import make_valid
+
+    dz = gdf[gdf["COUNTRY"] == "DZ"].copy()
+    stats_sink["effis_dz_features"] = len(dz)
+    items = []
+    no_date = 0
+    repaired = 0
+    dropped = 0
+    end_fallback = 0
+    for i, row in dz.iterrows():
+        start = pd.to_datetime(row.get("FIREDATE"), utc=True, errors="coerce")
+        end = pd.to_datetime(row.get("FINALDATE"), utc=True, errors="coerce")
+        if pd.isna(end):
+            end = pd.to_datetime(row.get("LASTUPDATE"), utc=True, errors="coerce")
+            if pd.notna(end):
+                end_fallback += 1
+        if pd.isna(start):
+            no_date += 1
+            continue
+        if pd.isna(end):
+            end = start
+            end_fallback += 1
+        try:
+            geom = row["geometry"]
+            if geom is None or geom.is_empty:
+                dropped += 1
+                continue
+            if not geom.is_valid:
+                geom = make_valid(geom)
+                if not geom.is_valid or geom.is_empty:
+                    dropped += 1
+                    continue
+                repaired += 1
+        except (AttributeError, TypeError, ValueError):
+            dropped += 1
+            continue
+        items.append({
+            "geometry": geom,
+            "start": (start - pd.Timedelta(days=1)).strftime("%Y-%m-%d"),
+            "end": (end + pd.Timedelta(days=1)).strftime("%Y-%m-%d"),
+            "gt_id": f"EFFIS:DZ:{row.get('id', i)}",
+            "source": "P2-EFFIS",
+        })
+    stats_sink["effis_missing_date"] = no_date
+    stats_sink["effis_repaired"] = repaired
+    stats_sink["effis_dropped"] = dropped
+    stats_sink["effis_end_fallback"] = end_fallback
+    stats_sink["effis_polygons"] = len(items)
+    return items
+
+
+def cmd_build(args: argparse.Namespace) -> int:
+    from numidia_core import db as db_mod
+    from numidia_core.config import DB_PATH
+    from numidia_core.enrichment import clip_to_algeria
+    from numidia_core.processing import derive_features
+    from numidia_ml import ground_truth as gt
+    from numidia_ml import labels as L
+    from numidia_ml import report as R
+
+    history_dir = Path(args.history)
+    gt_dir = Path(args.ground_truth)
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    manifest: dict = {"rules_version": L.RULES_VERSION,
+                      "generated_at": datetime.now(timezone.utc).isoformat()}
+    try:
+        git_bin = shutil.which("git") or r"C:\Program Files\Git\cmd\git.exe"
+        manifest["code_commit"] = subprocess.check_output(
+            [git_bin, "rev-parse", "--short", "HEAD"], cwd=REPO_ROOT,
+            text=True).strip()
+    except (subprocess.SubprocessError, OSError):
+        manifest["code_commit"] = "unknown"
+    gt_manifest = []
+
+    # ---- P1: EMSR533 ----------------------------------------------------
+    ems_polys, ems_stats = gt.load_ems_polygons(gt_dir / "emsr533")
+    ems_aois = gt.load_ems_aois(gt_dir / "emsr533")
+    manifest.update({f"ems_{k}": v for k, v in ems_stats.items()})
+    for prod in gt.EMS_PRODUCTS:
+        gt_manifest.append({
+            "key": f"P1-EMSR533:{prod['aoi']}:{prod['product']}",
+            "type": "Copernicus EMS Rapid Mapping burnt-area polygons (human-validated)",
+            "records": sum(1 for p in ems_polys if p["aoi"] == prod["aoi"]
+                           and p["product"] == prod["product"]),
+            "url": f"{gt.EMS_BASE_URL}/{prod['file']}",
+            "sha256": gt.sha256_file(gt_dir / "emsr533" / prod["file"]),
+        })
+    burnt = [{"geometry": p["geometry"], "start": gt.EMS_EVENT_WINDOW[0],
+              "end": gt.EMS_EVENT_WINDOW[1], "gt_id": p["ground_truth_id"],
+              "source": "P1-EMSR533"} for p in ems_polys]
+    aois = [{"geometry": a["geometry"], "aoi": a["aoi"],
+             "start": gt.EMS_EVENT_WINDOW[0], "end": gt.EMS_EVENT_WINDOW[1]}
+            for a in ems_aois]
+    print(f"[P1] {len(burnt)} burnt polygons, {len(aois)} AOIs", flush=True)
+
+    # ---- N1/N2: VNF flare catalogs --------------------------------------
+    sites_by_year: dict[int, pd.DataFrame] = {}
+    for year, fname in sorted(gt.VNF_FILES.items()):
+        local = gt_dir / "vnf" / f"flare_{year}.xlsx"  # saved under short name
+        sites, stats = gt.load_vnf_sites(local, year)
+        sites_by_year[year] = sites
+        gt_manifest.append({
+            "key": f"N1-VNF:{year}",
+            "type": "EOG VIIRS Nightfire annual gas-flare survey (SWIR pyrometry)",
+            "records": stats["algeria_sites"],
+            "url": f"{gt.VNF_BASE_URL}/{fname}",
+            "sha256": gt.sha256_file(gt_dir / "vnf" / f"flare_{year}.xlsx"),
+        })
+    manifest["vnf_sites"] = len(sites_by_year[max(sites_by_year)])
+    print(f"[N1] {manifest['vnf_sites']} Algeria flare sites "
+          f"({max(sites_by_year)} catalog)", flush=True)
+
+    # ---- P2: EFFIS -------------------------------------------------------
+    effis_zip = gt_dir / "effis" / args.effis_file
+    gdf, effis_stats = gt.load_effis_shapezip(effis_zip)
+    effis_sink: dict = {}
+    effis_items = _effis_items(gdf, effis_sink)
+    manifest.update(effis_sink)
+    gt_manifest.append({
+        "key": "P2-EFFIS:2026-season-MODIS",
+        "type": "EFFIS Rapid Damage Assessment burnt-area DB (MODIS, WFS SHAPEZIP)",
+        "records": effis_stats["features"],
+        "url": ("https://maps.effis.emergency.copernicus.eu/effis?service=WFS"
+                "&request=getfeature&typename=ms:modis.ba.poly&version=1.1.0"
+                "&outputformat=SHAPEZIP"),
+        "sha256": gt.sha256_file(effis_zip),
+    })
+    burnt.extend(effis_items)
+    print(f"[P2] {len(effis_items)} DZ polygons with usable dates "
+          f"(of {effis_stats['features']} WFS features)", flush=True)
+
+    # ---- FIRMS inputs: history (2021) + live DB (2026), read-only --------
+    hist = _load_history_frames(history_dir)
+    hist = clip_to_algeria(derive_features(hist))[0]
+    manifest["firms_history"] = (
+        f"{args.history}: {len(hist)} rows after features+Algeria clip")
+    live_rows = db_mod.load_detection_rows(
+        limit=100000, path=args.db or DB_PATH)
+    live = pd.DataFrame(live_rows)
+    for col in ("acq_datetime", "fetched_at"):
+        if col in live.columns:
+            live[col] = pd.to_datetime(live[col], utc=True)
+    manifest["firms_live"] = f"{args.db or DB_PATH}: {len(live)} rows (read-only)"
+    print(f"[FIRMS] history {len(hist)} + live {len(live)} rows", flush=True)
+
+    # ---- per-cohort labeling (catalog year must precede detection year) --
+    hist["acq_year"] = pd.to_datetime(hist["acq_datetime"], utc=True).dt.year
+    hist2021 = hist[hist["acq_year"] == 2021].copy()
+    hist2026 = hist[hist["acq_year"] == 2026].copy()
+    det2026 = pd.concat([hist2026, live], ignore_index=True) if not hist2026.empty else live
+    manifest["firms_history_split"] = (
+        f"2021: {len(hist2021)} rows; 2026: {len(hist2026)} rows; "
+        f"other years ignored: {len(hist) - len(hist2021) - len(hist2026)} rows")
+    cohorts = [
+        ("2021", hist2021, {2020: sites_by_year[2020], 2021: sites_by_year[2021]}, 2021),
+        ("2026", det2026, {y: sites_by_year[y] for y in (2021, 2022, 2023, 2024)}, 2024),
+    ]
+    all_labeled, all_excluded, total = [], [], None
+    all_persistent_ids: set = set()
+    for name, det, sy, cat_year in cohorts:
+        if det.empty:
+            continue
+        persistent = L.mark_persistent(sy)
+        all_persistent_ids.update(persistent["site_id"].tolist())
+        manifest[f"vnf_persistent_{name}"] = (
+            f"{int(persistent['persistent'].sum())}/{len(persistent)} sites")
+        lab, exc, counts = L.build_dataset(
+            det, burnt=burnt, aois=aois, flare_sites=persistent,
+            flare_catalog_year=cat_year)
+        lab["cohort"] = name
+        exc["cohort"] = name
+        all_labeled.append(lab)
+        all_excluded.append(exc)
+        print(f"[{name}] +{counts['positive']}/-{counts['negative']}/"
+              f"~{counts['uncertain']}/x{counts['excluded']}/"
+              f"dup{counts['duplicates']}", flush=True)
+        if total is None:
+            total = dict(counts)
+        else:
+            for k in ("input", "positive", "negative", "uncertain", "excluded",
+                      "labeled", "duplicates", "conflicts", "fire_pre_dedup",
+                      "nonfire_pre_dedup", "uncertain_pre_dedup"):
+                total[k] = total.get(k, 0) + counts.get(k, 0)
+    if not all_labeled:
+        print("[ERROR] no cohorts produced labels", flush=True)
+        return 2
+    labeled = pd.concat(all_labeled, ignore_index=True)
+    excluded = pd.concat(all_excluded, ignore_index=True)
+    labeled = L.add_event_id(labeled)
+    labeled = L.assign_split(labeled)
+
+    # ---- publication verification gate (fail loudly, write nothing) ------
+    input_ids = set(hist["detection_id"].tolist()) | set(live["detection_id"].tolist())
+    verification = L.verify_dataset(labeled, input_ids, all_persistent_ids)
+    print("--- verification ---", flush=True)
+    failed = 0
+    for v in verification:
+        mark = "PASS" if v["ok"] else "FAIL"
+        if not v["ok"]:
+            failed += 1
+        print(f"[{mark}] {v['check']} :: {v['detail']}", flush=True)
+    if failed:
+        print(f"[ERROR] {failed} verification check(s) failed - "
+              f"dataset NOT written", flush=True)
+        return 2
+
+    split_counts = labeled.groupby(["split", "label"]).size().to_dict()
+    cohort_table = labeled.groupby(["cohort", "label"]).size().reset_index(name="count")
+    ems_matches = int((labeled["label_source"] == "P1-EMSR533").sum())
+    effis_matches = int((labeled["label_source"] == "P2-EFFIS").sum())
+    vnf_matches = int((labeled["label_source"] == "N1-flare").sum())
+    flare_ref = labeled[labeled["ground_truth_id"].str.startswith("VNF", na=False)]
+    distinct_flare_sites = int(
+        flare_ref[["ground_truth_id"]].drop_duplicates().shape[0])
+    manifest["splits"] = {f"{s}/{l}": int(c) for (s, l), c in split_counts.items()}
+    manifest["verification"] = verification
+
+    dataset_path = out_dir / "firms_labels_v1.csv"
+    excluded_path = out_dir / "firms_excluded_v1.csv"
+    labeled.to_csv(dataset_path, index=False)
+    excluded.to_csv(excluded_path, index=False)
+    manifest["ground_truth"] = gt_manifest
+    manifest["counts"] = total
+    manifest["dataset"] = str(dataset_path)
+    manifest["dataset_rows"] = len(labeled)
+    manifest["dataset_sha256"] = gt.sha256_file(dataset_path)
+    (out_dir / "manifest_v1.json").write_text(
+        json.dumps(manifest, indent=2, default=str))
+
+    rules = {"version": L.RULES_VERSION,
+             "flare_radius_m": L.FLARE_RADIUS_M,
+             "flare_ring_m": L.FLARE_RING_M,
+             "site_persist_m": L.SITE_PERSIST_M,
+             "u3_days": L.U3_DAYS,
+             "dedup_decimals": L.DEDUP_DECIMALS}
+    R.write_report(Path(args.report), counts=total, manifest=manifest,
+                   labeled=labeled, rules=rules, split_counts=split_counts,
+                   cohort_table=cohort_table, verification=verification,
+                   ems_matches=ems_matches, effis_matches=effis_matches,
+                   vnf_matches=vnf_matches,
+                   distinct_flare_sites=distinct_flare_sites,
+                   excluded_reasons=excluded["exclude_reason"].value_counts().to_dict())
+    print(f"[OK] {len(labeled)} labeled + {len(excluded)} excluded -> {dataset_path}")
+    print(f"     report -> {args.report}")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="numidia_ml", description="NUMIDIA verifier labeling pipeline")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    ph = sub.add_parser("pull-history",
+                        help="pull dated FIRMS NRT windows (history use only)")
+    ph.add_argument("--start", required=True, help="YYYY-MM-DD")
+    ph.add_argument("--end", required=True, help="YYYY-MM-DD")
+    ph.add_argument("--sources", default="VIIRS_SNPP_SP,VIIRS_NOAA20_SP",
+                    help="FIRMS sources (history pulls use _SP archive products; "
+                         "verified: _NRT serves recent dates only)")
+    ph.add_argument("--map-key", default=None)
+    ph.add_argument("--out", default=str(DEFAULT_HISTORY))
+    ph.set_defaults(func=cmd_pull_history)
+
+    pb = sub.add_parser("build", help="assemble labeled dataset + report")
+    pb.add_argument("--history", default=str(DEFAULT_HISTORY))
+    pb.add_argument("--ground-truth", default=str(DEFAULT_GT))
+    pb.add_argument("--effis-file",
+                    default="effis_burnt_areas_current season_WFS.zip")
+    pb.add_argument("--db", default=None, help="live DB path (read-only)")
+    pb.add_argument("--out", default=str(DEFAULT_OUT))
+    pb.add_argument("--report", default=str(DEFAULT_REPORT))
+    pb.set_defaults(func=cmd_build)
+
+    args = parser.parse_args(argv)
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

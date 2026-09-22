@@ -13,6 +13,12 @@ venv/
 # NEVER a source of truth - production reads the database, tests use fixtures.
 data/raw/firms/*
 !data/raw/firms/.gitkeep
+# Labeling ground truth raw downloads (120MB+ EMS/EFFIS/VNF) and FIRMS
+# history pulls - regenerable via documented pinned URLs + pull-history
+# command (see docs/dataset-report-v1.md). The curated dataset itself
+# (firms_labels_v1.csv, firms_excluded_v1.csv, manifest_v1.json) IS committed.
+data/labels/ground_truth/
+data/labels/firms_history/
 data/processed/*.parquet
 data/processed/*.json
 data/evaluation/*

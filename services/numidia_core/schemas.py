@@ -34,6 +34,7 @@ class Detection(BaseModel):
     frp: float = 0.0                        # Fire Radiative Power (MW) - VIIRS
     daynight: Optional[str] = None          # D / N
     version: Optional[str] = None           # e.g. 2.0NRT
+    type: Optional[str] = None              # SP product fire-type flag (context only, NEVER a label)
     source: str                             # e.g. VIIRS_NOAA21_NRT
     source_url: Optional[str] = None        # API key ALWAYS redacted
     fetched_at: datetime                    # ingestion timestamp (UTC)

@@ -22,7 +22,7 @@ CANONICAL_COLUMNS = [
     "detection_id", "lat", "lon", "acq_datetime", "acq_date", "acq_time",
     "satellite", "instrument", "confidence", "confidence_raw",
     "bright_ti4", "bright_ti5", "scan", "track", "frp", "daynight",
-    "version", "source", "source_url", "fetched_at",
+    "version", "type", "source", "source_url", "fetched_at",
 ]
 
 CONFIDENCE_MAP = {
@@ -154,19 +154,42 @@ def bbox_str(bbox=None) -> str:
     return f"{b['lon_min']},{b['lat_min']},{b['lon_max']},{b['lat_max']}"
 
 
-def fetch_nrt_area(map_key: str | None = None, sources=None, day: int = 1,
-                   bbox=None) -> pd.DataFrame:
-    """FIRMS NRT Area API (real, needs key). Returns one raw frame with 'source'."""
+def nrt_url(map_key: str | None, source: str, day: int, bbox=None,
+            date: str | None = None) -> str:
+    """Build an NRT Area API URL (pure helper - unit testable, no network).
+
+    Official pattern: /api/area/csv/[KEY]/[SOURCE]/[west,south,east,north]/[DAY_RANGE](/[DATE])
+    DATE (YYYY-MM-DD) is optional; omitted = most recent data (live path).
+    """
     key = (map_key or FIRMS_MAP_KEY).strip()
     if not key:
         raise RuntimeError("FIRMS_MAP_KEY required for NRT Area API.")
     if day not in (1, 2, 3, 4, 5):
         raise ValueError("NRT area API supports day_range 1..5.")
+    url = f"{FIRMS_API_BASE}/{key}/{source}/{bbox_str(bbox)}/{day}"
+    if date is not None:
+        try:
+            datetime.strptime(date, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError(f"date must be YYYY-MM-DD, got {date!r}")
+        url += f"/{date}"
+    return url
+
+
+def fetch_nrt_area(map_key: str | None = None, sources=None, day: int = 1,
+                   bbox=None, date: str | None = None) -> pd.DataFrame:
+    """FIRMS NRT Area API (real, needs key). Returns one raw frame with 'source'.
+
+    date=None fetches the most recent data (the live production path, unchanged).
+    A YYYY-MM-DD date fetches that day's NRT window (history/labeling use only).
+    """
+    key = (map_key or FIRMS_MAP_KEY).strip()
+    if not key:
+        raise RuntimeError("FIRMS_MAP_KEY required for NRT Area API.")
     sources = sources or FIRMS_SOURCES
     frames = []
     for src in sources:
-        # Official pattern: /api/area/csv/[KEY]/[SOURCE]/[west,south,east,north]/[DAY_RANGE]
-        url = f"{FIRMS_API_BASE}/{key}/{src}/{bbox_str(bbox)}/{day}"
+        url = nrt_url(key, src, day, bbox=bbox, date=date)
         r = requests.get(url, timeout=120)
         r.raise_for_status()
         if not r.text.strip():
@@ -197,20 +220,22 @@ def fetch_archive(archive_source: str, period: str = "24h") -> tuple[pd.DataFram
 
 
 def fetch_detections(map_key: str | None = None, mode: str = "auto",
-                     day: int = 1) -> tuple[pd.DataFrame, dict]:
+                     day: int = 1,
+                     date: str | None = None) -> tuple[pd.DataFrame, dict]:
     """Fetch + normalize + validate real detections.
 
-    Returns (canonical df, meta) where meta has: source, url, fetched_at,
-    state ('LIVE'|'HISTORICAL' - computed later at serve time from acq time).
-    Raises RuntimeError when no source is reachable/available (failure is
-    reported honestly, never replaced with fake data).
+    date=None fetches the most recent data (live production path, unchanged).
+    A YYYY-MM-DD date is only honored in api mode (history/labeling use).
+
+    Returns (canonical df, meta). Raises RuntimeError when no source is
+    reachable/available (failure is reported honestly, never replaced).
     """
     fetched_at = datetime.now(timezone.utc)
     if mode == "auto":
         mode = "api" if (map_key or FIRMS_MAP_KEY) else "archive"
 
     if mode == "api":
-        raw = fetch_nrt_area(map_key=map_key, day=day)
+        raw = fetch_nrt_area(map_key=map_key, day=day, date=date)
         sources = list(raw["_firms_source"].unique()) if not raw.empty else []
         urls = list(raw["_firms_url"].unique()) if not raw.empty else []
         per_source = mode
@@ -249,5 +274,6 @@ def fetch_detections(map_key: str | None = None, mode: str = "auto",
         "fetched_at": fetched_at,
         "count": len(df),
         "mode": mode,
+        "date": date,
     }
     return df, meta

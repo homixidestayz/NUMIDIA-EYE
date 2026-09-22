@@ -1,0 +1,157 @@
+{
+  "rules_version": "v1",
+  "generated_at": "2026-09-22T16:25:00.463109+00:00",
+  "code_commit": "8bb32dc",
+  "ems_products": 4,
+  "ems_features": 253,
+  "ems_kept": 253,
+  "ems_repaired": 13,
+  "ems_dropped_invalid": 0,
+  "ems_skipped_notation": 0,
+  "vnf_sites": 244,
+  "effis_dz_features": 4554,
+  "effis_missing_date": 0,
+  "effis_repaired": 1,
+  "effis_dropped": 0,
+  "effis_end_fallback": 0,
+  "effis_polygons": 4554,
+  "firms_history": "C:\\Users\\Admin\\Documents\\NUMIDIA-EYE\\data\\labels\\firms_history: 54423 rows after features+Algeria clip",
+  "firms_live": "C:\\Users\\Admin\\Documents\\NUMIDIA-EYE\\data\\db\\numidia.db: 1803 rows (read-only)",
+  "firms_history_split": "2021: 20311 rows; 2026: 34112 rows; other years ignored: 0 rows",
+  "vnf_persistent_2021": "186/217 sites",
+  "vnf_persistent_2026": "181/244 sites",
+  "splits": {
+    "test/fire": 10323,
+    "test/non-fire": 10393,
+    "test/uncertain": 4632,
+    "train/fire": 7974,
+    "train/non-fire": 4594,
+    "train/uncertain": 3275,
+    "val/fire": 201
+  },
+  "verification": [
+    {
+      "check": "V1: every non-fire row is a night detection <=1000 m of a persistent flare site (N1-flare)",
+      "ok": true,
+      "detail": "non-fire rows: 14987"
+    },
+    {
+      "check": "V4: every fire row traces to a burnt polygon (P1-EMSR533 or P2-EFFIS only)",
+      "ok": true,
+      "detail": "fire rows: 18498"
+    },
+    {
+      "check": "V6: label_source values come only from the documented rule set (no threshold/LLM path exists)",
+      "ok": true,
+      "detail": "offenders: []"
+    },
+    {
+      "check": "V5: every labeled row traces to a real FIRMS pull (no synthetic rows)",
+      "ok": true,
+      "detail": "untraced: 0"
+    },
+    {
+      "check": "V3: every flare-referenced row uses a persistent (>=2 catalog years) site",
+      "ok": true,
+      "detail": "distinct flare sites referenced: 232, outside persistent set: 0"
+    },
+    {
+      "check": "V2: fire-class event_ids are disjoint across train/val/test (no event leakage)",
+      "ok": true,
+      "detail": "shared fire events across splits: []; train 102 / val 1 / test 140 events"
+    },
+    {
+      "check": "labeled rows all carry a split; excluded rows carry none",
+      "ok": true,
+      "detail": "labeled without split: 0"
+    }
+  ],
+  "ground_truth": [
+    {
+      "key": "P1-EMSR533:AOI01-TiziOuzou:DEL_PRODUCT",
+      "type": "Copernicus EMS Rapid Mapping burnt-area polygons (human-validated)",
+      "records": 81,
+      "url": "https://cems-mapping-website.s3.eu-west-1.amazonaws.com/static/activations/EMSR533/EMSR533_AOI01_DEL_PRODUCT_r1_RTP01_v2_vector.zip",
+      "sha256": "dd7c8f2ec1584aa2725649a0fbf97b260d4122bd6783efe2e70c26422801f10e"
+    },
+    {
+      "key": "P1-EMSR533:AOI01-TiziOuzou:GRA_PRODUCT",
+      "type": "Copernicus EMS Rapid Mapping burnt-area polygons (human-validated)",
+      "records": 111,
+      "url": "https://cems-mapping-website.s3.eu-west-1.amazonaws.com/static/activations/EMSR533/EMSR533_AOI01_GRA_PRODUCT_r1_RTP01_v1_vector.zip",
+      "sha256": "afd970a790d0e6feb5907f48412ab8b07597b7fad307673c876df70b02c3a31b"
+    },
+    {
+      "key": "P1-EMSR533:AOI02-Aokas:DEL_PRODUCT",
+      "type": "Copernicus EMS Rapid Mapping burnt-area polygons (human-validated)",
+      "records": 26,
+      "url": "https://cems-mapping-website.s3.eu-west-1.amazonaws.com/static/activations/EMSR533/EMSR533_AOI02_DEL_PRODUCT_r1_RTP01_v1_vector.zip",
+      "sha256": "ecdbac7e0aa7919d8e5b2c2871af15d454a9b06be7a86c0150528ed3d37e6e9e"
+    },
+    {
+      "key": "P1-EMSR533:AOI02-Aokas:GRA_PRODUCT",
+      "type": "Copernicus EMS Rapid Mapping burnt-area polygons (human-validated)",
+      "records": 35,
+      "url": "https://cems-mapping-website.s3.eu-west-1.amazonaws.com/static/activations/EMSR533/EMSR533_AOI02_GRA_PRODUCT_r1_RTP01_v1_vector.zip",
+      "sha256": "762ee17e62d0260439d24fea50c32baecf3bc3fc5fc7370ce22a024df01b2b37"
+    },
+    {
+      "key": "N1-VNF:2020",
+      "type": "EOG VIIRS Nightfire annual gas-flare survey (SWIR pyrometry)",
+      "records": 234,
+      "url": "https://eogdata.mines.edu/global_flare_data/VIIRS_Global_flaring_d.7_slope_0.029353_2020_web_v1.xlsx",
+      "sha256": "efd3992892bed975b8563f224214c49858d40e577645c40cd47d2e402a0c9ca6"
+    },
+    {
+      "key": "N1-VNF:2021",
+      "type": "EOG VIIRS Nightfire annual gas-flare survey (SWIR pyrometry)",
+      "records": 217,
+      "url": "https://eogdata.mines.edu/global_flare_data/VIIRS_Global_flaring_d.7_slope_0.029353_2021_web.xlsx",
+      "sha256": "7d2a2aac8733f7290c4851fe54e30cbca3aeee463363af060efbc924a54ef488"
+    },
+    {
+      "key": "N1-VNF:2022",
+      "type": "EOG VIIRS Nightfire annual gas-flare survey (SWIR pyrometry)",
+      "records": 210,
+      "url": "https://eogdata.mines.edu/global_flare_data/VIIRS_Global_flaring_d.7_slope_0.029353_2022_v20230526_web.xlsx",
+      "sha256": "c9fa2ec4440445155be99e44d1bdb88ae3b1a989c54bb788288b248b47d1b8a3"
+    },
+    {
+      "key": "N1-VNF:2023",
+      "type": "EOG VIIRS Nightfire annual gas-flare survey (SWIR pyrometry)",
+      "records": 219,
+      "url": "https://eogdata.mines.edu/global_flare_data/VIIRS_Global_flaring_d.7_slope_0.029353_2023_v20230614_web_IDmatch.xlsx",
+      "sha256": "3a4607100413af2d56746d31ede71aea1a698dc1f9edfedd3694f70509470193"
+    },
+    {
+      "key": "N1-VNF:2024",
+      "type": "EOG VIIRS Nightfire annual gas-flare survey (SWIR pyrometry)",
+      "records": 244,
+      "url": "https://eogdata.mines.edu/global_flare_data/VIIRS_Global_flaring_d.7_slope_0.029353_2024_v20240730_web_IDmatch.xlsx",
+      "sha256": "2fcf6f27fe9d4a4322b62ecf9f89a4a34ad0842c192f3903e9568ae4f32e0ed6"
+    },
+    {
+      "key": "P2-EFFIS:2026-season-MODIS",
+      "type": "EFFIS Rapid Damage Assessment burnt-area DB (MODIS, WFS SHAPEZIP)",
+      "records": 107428,
+      "url": "https://maps.effis.emergency.copernicus.eu/effis?service=WFS&request=getfeature&typename=ms:modis.ba.poly&version=1.1.0&outputformat=SHAPEZIP",
+      "sha256": "8ced1e04d4c51a37e16de23ae7a5fb60824aee557b1797b259f15942f7f7390a"
+    }
+  ],
+  "counts": {
+    "input": 56226,
+    "conflicts": 0,
+    "duplicates": 2362,
+    "fire_pre_dedup": 19416,
+    "nonfire_pre_dedup": 16082,
+    "uncertain_pre_dedup": 8256,
+    "positive": 18498,
+    "negative": 14987,
+    "uncertain": 7907,
+    "excluded": 12472,
+    "labeled": 41392
+  },
+  "dataset": "C:\\Users\\Admin\\Documents\\NUMIDIA-EYE\\data\\labels\\firms_labels_v1.csv",
+  "dataset_rows": 41392,
+  "dataset_sha256": "44165a2e7a93ae10fcbf8c6b9bd6fad863fba4ed8577c35858fe7a36c21f65ba"
+}

@@ -98,6 +98,7 @@ def _detection_from_row(row: dict, ingest_fresh: bool, now: datetime) -> Detecti
         "frp": _clean(row.get("frp")),
         "daynight": _clean(row.get("daynight")),
         "version": _clean(row.get("version")),
+        "type": _clean(row.get("type")),
         "source": _clean(row.get("source")) or "FIRMS",
         "source_url": _clean(row.get("source_url")),
         "fetched_at": fetched,
