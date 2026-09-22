@@ -353,6 +353,138 @@ def cmd_build(args: argparse.Namespace) -> int:
     return 0
 
 
+def _daterange_str(df: pd.DataFrame, label: str) -> str:
+    ts = pd.to_datetime(df.loc[df["label"] == label, "acq_datetime"], utc=True)
+    return f"{ts.min().date()} … {ts.max().date()}"
+
+
+def cmd_audit(args: argparse.Namespace) -> int:
+    """Bias audit. Reads v1 read-only; proves immutability via SHA before/after."""
+    from numidia_ml import audit as A
+    from numidia_ml import ground_truth as gt
+
+    ds = Path(args.dataset)
+    sha_before = gt.sha256_file(ds)
+    lab = pd.read_csv(ds)
+    two = lab[lab["label"].isin(("fire", "non-fire"))].copy()
+    two["lat"] = pd.to_numeric(two["lat"], errors="coerce")
+    two["lon"] = pd.to_numeric(two["lon"], errors="coerce")
+    for c in ("frp", "bright_ti4", "bright_ti5", "f_bt_diff"):
+        two[c] = pd.to_numeric(two[c], errors="coerce")
+
+    y = (two["label"] == "fire").astype(int).to_numpy()
+    stats = {
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        "dataset": ds.name,
+        "dataset_sha": sha_before,
+        "rules_version": two["rules_version"].iloc[0] if len(two) else "?",
+        "lat": A.distribution_summary(two, "lat"),
+        "lon": A.distribution_summary(two, "lon"),
+        "frp": A.distribution_summary(two, "frp"),
+        "bt4": A.distribution_summary(two, "bright_ti4"),
+        "bt5": A.distribution_summary(two, "bright_ti5"),
+        "btdiff": A.distribution_summary(two, "f_bt_diff"),
+        "overlap_lat": round(A.histogram_overlap(two, "lat"), 4),
+        "overlap_lon": round(A.histogram_overlap(two, "lon"), 4),
+        "overlap_frp": round(A.histogram_overlap(two, "frp"), 4),
+        "overlap_btdiff": round(A.histogram_overlap(two, "f_bt_diff"), 4),
+        "wilaya_table": {w: {"fire": int(r["fire"]), "non-fire": int(r["non-fire"]),
+                             "total": int(r["total"]), "fire_rate": float(r["fire_rate"])}
+                         for w, r in A.crosstab(two, "wilaya_name").iterrows()},
+        "wilaya_lookup": {k: (round(v, 4) if isinstance(v, float) else v)
+                          for k, v in A.wilaya_lookup_accuracy(two).items()},
+        "daynight_ct": A.crosstab(two, "daynight")[["fire", "non-fire"]].to_dict(),
+        "sat_ct": A.crosstab(two, "satellite")[["fire", "non-fire"]].to_dict(),
+        "fire_dates": _daterange_str(two, "fire"),
+        "nonfire_dates": _daterange_str(two, "non-fire"),
+        "thresholds": {
+            "latitude": A.best_single_threshold(two["lat"].to_numpy(), y),
+            "longitude": A.best_single_threshold(two["lon"].to_numpy(), y),
+            "frp": A.best_single_threshold(two["frp"].to_numpy(), y),
+            "band_difference": A.best_single_threshold(two["f_bt_diff"].to_numpy(), y),
+        },
+        "geo_baseline": A.geo_baseline_test_performance(lab),
+    }
+
+    sites_by_year: dict[int, pd.DataFrame] = {}
+    for year, fname in sorted(gt.VNF_FILES.items()):
+        sites, _ = gt.load_vnf_sites(Path(args.ground_truth) / "vnf" / f"flare_{year}.xlsx", year)
+        sites_by_year[year] = sites
+    north = A.northern_flare_analysis(sites_by_year, lab)
+    stats.update({
+        "north_cut": north["north_lat_cut"],
+        "north_persistent": north["persistent_north_sites"],
+        "north_total": north["persistent_total"],
+        "north_matched": north["north_matched_sites"],
+        "north_sites": north["north_sites"],
+    })
+
+    n_south_neg = int(((two["label"] == "non-fire") & (two["lat"] < A.NORTH_LAT)).sum())
+    n_north_neg = int(((two["label"] == "non-fire") & (two["lat"] >= A.NORTH_LAT)).sum())
+    n_north_fire = int(((two["label"] == "fire") & (two["lat"] >= A.NORTH_LAT)).sum())
+    proposal = {
+        "hard_negatives": (
+            "H1 — Northern persistent VNF sites (measured above): "
+            f"{north['persistent_north_sites']} persistent sites at/above "
+            f"{north['north_lat_cut']}°N, of which {north['north_matched_sites']} "
+            f"already anchor dataset rows. Dataset today holds {n_north_neg} "
+            f"northern negatives vs {n_south_neg} southern negatives against "
+            f"{n_north_fire} northern fires. H1 is real, committed ground truth "
+            "in the confusing latitude band — the immediate hard-negative pool. "
+            "Required before training: per-site review confirming each northern "
+            "site is industrial (sector + imagery), then stratify/upsample them "
+            "so the model cannot trade latitude for physics.\n"
+            "H2 — N2-style manual curation of northern industrial heat (cement "
+            "works, power stations, refinery flares with operator-confirmed "
+            "events): coordinates + event dates + imagery review, admitted "
+            "per-site like N2. Not downloaded — field/literature work, no ETA.\n"
+            "REJECTED: labeling 'no ground truth' northern detections as "
+            "negative; EFFIS unburned-area inversion; agricultural burns "
+            "(combustion — at best uncertain); any threshold-derived labels."
+        ),
+        "split": (
+            "Revise to a dual-axis design (v2 dataset fields: split stays, rule "
+            "changes): (a) TIME axis — keep the 2026 forward holdout as test; "
+            "(b) GEOGRAPHY axis — within 2021, geo-grouped K-fold by event "
+            "(EMSR533 AOI01 vs AOI02 plus EFFIS-2021 polygon groups) for model "
+            "selection, replacing single-AOI02 validation; (c) REPORTING axis — "
+            "every metric stratified by latitude band (≥34°N vs <34°N) and by "
+            "day/night, so geo-cheating is visible even if aggregate scores "
+            "look good; (d) FEATURE RULE — raw lat/lon and wilaya identifiers "
+            "are banned from model inputs (stratification-only); verification "
+            "V2 extends to assert train/val/test event disjointness per fold."
+        ),
+        "verdict": (
+            "v1 is NOT suitable for training as-is: the negative class is "
+            "geographically isolated by construction, and the measured "
+            "baseline proves coordinates alone separate the classes "
+            "(lat/lon-only logistic regression: 0.975 accuracy, 0.975 AUC on "
+            "the 2026 forward-time test; single latitude threshold: 97.9%; "
+            "wilaya lookup: 98.9%). Any model with location features would "
+            "learn the map, not fire physics. A second, independent shortcut "
+            "exists: every non-fire row is nighttime by construction while "
+            "fires are day+night, so day/night must also be stratified at "
+            "evaluation, never trusted as a feature. v1 REMAINS the approved "
+            "immutable evidence base; training waits on v2 with H1 "
+            "verified+stratified, the coordinate ban, and the dual-axis split."
+        ),
+        "data_needs": (
+            "1. H1 per-site industrial confirmation (sector + imagery) for the "
+            "northern persistent VNF sites, committed as data/labels/north_sites_review.csv. "
+            "2. H2 northern industrial-heat curation (manual, no ETA). "
+            "3. 2022–2025 positives via EFFIS DATA REQUEST FORM / EMS archive "
+            "query (manual). 4. P3 commune-level curation for event validation. "
+            "5. v2 dataset build implementing the revised split + stratification "
+            "fields. None of these invent labels; all extend ground truth."
+        ),
+    }
+    A.write_audit_report(args.report, stats=stats, proposal=proposal)
+    sha_after = gt.sha256_file(ds)
+    print(f"[OK] audit -> {args.report}")
+    print(f"     v1 immutable: {sha_before == sha_after} (sha {sha_before[:12]}…)")
+    return 0 if sha_before == sha_after else 2
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="numidia_ml", description="NUMIDIA verifier labeling pipeline")
@@ -378,6 +510,12 @@ def main(argv: list[str] | None = None) -> int:
     pb.add_argument("--out", default=str(DEFAULT_OUT))
     pb.add_argument("--report", default=str(DEFAULT_REPORT))
     pb.set_defaults(func=cmd_build)
+
+    pa = sub.add_parser("audit", help="dataset-bias audit (analysis only, v1 read-only)")
+    pa.add_argument("--dataset", default=str(DEFAULT_OUT / "firms_labels_v1.csv"))
+    pa.add_argument("--ground-truth", default=str(DEFAULT_GT))
+    pa.add_argument("--report", default=str(REPO_ROOT / "docs" / "bias-audit-v1.md"))
+    pa.set_defaults(func=cmd_audit)
 
     args = parser.parse_args(argv)
     return args.func(args)
