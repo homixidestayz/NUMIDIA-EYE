@@ -358,6 +358,27 @@ def _daterange_str(df: pd.DataFrame, label: str) -> str:
     return f"{ts.min().date()} … {ts.max().date()}"
 
 
+def cmd_experiment(args: argparse.Namespace) -> int:
+    from numidia_ml import experiment as E
+    from numidia_ml import ground_truth as gt
+
+    ds = Path(args.dataset)
+    if not ds.exists():
+        print(f"[ERROR] dataset not found: {ds}", flush=True)
+        return 2
+    sha = gt.sha256_file(ds)
+    record = E.run_experiment(ds, Path(args.out), sha)
+    E.write_experiment_report(args.report, record)
+    t = record["test_once"]
+    print(f"[OK] experiment {record['experiment']} model={record['model']} "
+          f"thr={t['threshold']}", flush=True)
+    print(f"     test ROC-AUC={t['roc_auc']:.4f} PR-AUC={t['pr_auc']:.4f} "
+          f"F1={t['f1']:.4f} Brier={t['brier']:.4f}", flush=True)
+    print(f"     artifacts -> {args.out} | report -> {args.report}")
+    print("     NOT REGISTERED: live API still returns 503 AI_UNAVAILABLE.")
+    return 0
+
+
 def cmd_audit(args: argparse.Namespace) -> int:
     """Bias audit. Reads v1 read-only; proves immutability via SHA before/after."""
     from numidia_ml import audit as A
@@ -760,6 +781,13 @@ def main(argv: list[str] | None = None) -> int:
     pa.add_argument("--ground-truth", default=str(DEFAULT_GT))
     pa.add_argument("--report", default=str(REPO_ROOT / "docs" / "bias-audit-v1.md"))
     pa.set_defaults(func=cmd_audit)
+
+    px = sub.add_parser("experiment",
+                        help="first model experiment (local artifact, never registered)")
+    px.add_argument("--dataset", default=str(DEFAULT_OUT / "firms_labels_v2.csv"))
+    px.add_argument("--out", default=str(REPO_ROOT / "services" / "ml" / "models" / "exp_v1"))
+    px.add_argument("--report", default=str(REPO_ROOT / "docs" / "model-experiment-v1.md"))
+    px.set_defaults(func=cmd_experiment)
 
     args = parser.parse_args(argv)
     return args.func(args)
