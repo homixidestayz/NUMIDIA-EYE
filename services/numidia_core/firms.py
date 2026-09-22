@@ -69,6 +69,18 @@ def redact_url(url: str | None, map_key: str | None = None) -> str | None:
     return url
 
 
+def redact_key_from_text(text: str | None, map_key: str | None = None) -> str:
+    """Redact the MAP_KEY from arbitrary text (e.g. exception messages carrying
+    the request URL) before it reaches logs, run records, or API responses."""
+    if not text:
+        return ""
+    out = str(text)
+    key = (map_key or FIRMS_MAP_KEY).strip()
+    if key and key in out:
+        out = out.replace(key, "{FIRMS_MAP_KEY}")
+    return out
+
+
 def _detection_id(lat, lon, acq_iso, satellite, source) -> str:
     h = hashlib.sha1(f"{lat}|{lon}|{acq_iso}|{satellite}|{source}".encode("utf-8"))
     return h.hexdigest()[:16]
@@ -148,12 +160,13 @@ def fetch_nrt_area(map_key: str | None = None, sources=None, day: int = 1,
     key = (map_key or FIRMS_MAP_KEY).strip()
     if not key:
         raise RuntimeError("FIRMS_MAP_KEY required for NRT Area API.")
-    if day not in (1, 2):
-        raise ValueError("NRT area API supports day=1 (24h) or day=2 (48h).")
+    if day not in (1, 2, 3, 4, 5):
+        raise ValueError("NRT area API supports day_range 1..5.")
     sources = sources or FIRMS_SOURCES
     frames = []
     for src in sources:
-        url = f"{FIRMS_API_BASE}/{key}/{src}/{day}/{bbox_str(bbox)}"
+        # Official pattern: /api/area/csv/[KEY]/[SOURCE]/[west,south,east,north]/[DAY_RANGE]
+        url = f"{FIRMS_API_BASE}/{key}/{src}/{bbox_str(bbox)}/{day}"
         r = requests.get(url, timeout=120)
         r.raise_for_status()
         if not r.text.strip():

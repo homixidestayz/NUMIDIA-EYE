@@ -77,8 +77,8 @@ def main(argv: list[str] | None = None) -> int:
     pf.add_argument("--mode", choices=["api", "archive"], default=None,
                     help=f"ingestion mode (default: {INGEST_MODE}; "
                          "'api' needs the key, 'archive' is explicit backfill)")
-    pf.add_argument("--day", type=int, default=None,
-                    help=f"1 = last 24h, 2 = last 48h (default: {INGEST_DAY})")
+    pf.add_argument("--day", type=int, default=None, choices=[1, 2, 3, 4, 5],
+                    help=f"day range 1..5 (default: {INGEST_DAY})")
     pf.add_argument("--no-audit", action="store_true",
                     help="skip writing the audit snapshot CSV")
     pf.set_defaults(func=cmd_fetch)

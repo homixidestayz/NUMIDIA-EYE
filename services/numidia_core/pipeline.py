@@ -89,7 +89,8 @@ def run_ingest(db_path: Path | str | None = None, map_key: str | None = None,
         df, meta = firms_mod.fetch_detections(
             map_key=key or None, mode=mode, day=day)
     except Exception as exc:  # noqa: BLE001 - record honestly, never fabricate
-        msg = f"FIRMS fetch failed: {exc}"
+        # The exception text carries the request URL: redact the key first.
+        msg = f"FIRMS fetch failed: {firms_mod.redact_key_from_text(str(exc), key)}"
         db_mod.record_run(
             mode=mode, sources=[], urls=[], count_new=0,
             count_total=db_mod.detection_stats(db_path)["count"],
