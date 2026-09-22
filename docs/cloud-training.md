@@ -81,6 +81,12 @@ fails loudly beyond tolerance.
   the experiment command is required (no `pip install -e .` needed).
 - Dataset SHA mismatch → stop; re-clone pristine (notebook asserts clean
   `git status`); never train on an edited CSV.
+- SHA mismatch on a pristine clone → check line endings: dataset CSVs are
+  pinned to LF by `.gitattributes`, so the recorded SHA is the LF-blob hash
+  on every platform. If your git client converts line endings anyway
+  (`core.autocrlf=true` without attributes support), the bytes — and hence
+  the hash — will differ despite identical data. Fix the client config,
+  re-checkout, and re-run the SHA cell.
 - `verify-artifact` metric drift beyond tolerance → almost always a major
   scikit-learn version difference; record both versions, retrain with a
   pinned version if bitwise parity is required.

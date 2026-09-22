@@ -1,0 +1,12 @@
+# Line-ending policy: hashes of dataset/report files are part of the
+# reproducibility contract (manifests, SHA gates), so these paths are pinned
+# to LF on every platform. Without this, Windows checkouts (autocrlf) produce
+# CRLF working trees whose SHA differs from the committed LF blob, and every
+# cross-platform hash gate fails on identical data.
+* text=auto
+data/labels/*.csv text eol=lf
+data/labels/*.json text eol=lf
+docs/*.md text eol=lf
+notebooks/*.ipynb text eol=lf
+services/**/*.py text eol=lf
+tests/**/*.py text eol=lf

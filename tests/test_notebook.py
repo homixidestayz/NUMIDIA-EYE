@@ -28,7 +28,7 @@ def test_notebook_covers_workflow():
     text = "\n".join(_sources(_nb()))
     for marker in ("git clone", "pip install", "manifest_v2",
                    "firms_labels_v2.csv", "numidia_ml.cli experiment",
-                   "PYTHONPATH", "metrics.json", "EXPERIMENTAL"):
+                   "PYTHONPATH", "metrics.json", "config.json", "EXPERIMENTAL"):
         assert marker in text, f"notebook missing: {marker}"
 
 

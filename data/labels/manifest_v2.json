@@ -121,7 +121,7 @@
   "v1_sha256": "44165a2e7a93ae10fcbf8c6b9bd6fad863fba4ed8577c35858fe7a36c21f65ba",
   "dataset": "C:\\Users\\Admin\\Documents\\NUMIDIA-EYE\\data\\labels\\firms_labels_v2.csv",
   "dataset_rows": 53615,
-  "dataset_sha256": "d8e9fbb3fd1874b30bc1d07f3ed6b426bffc3d35e7d08a2f0d9e91a38335bd54",
+  "dataset_sha256": "9c103caa1d81eada55f24fd2cfce888af1cb6c010b0564c71eb5fd2ba7cf64b5",
   "model_features_v1": [
     "bright_ti4",
     "bright_ti5",
@@ -224,5 +224,6 @@
       "ok": true,
       "detail": "shared ~1 km non-fire cells across splits: 256"
     }
-  ]
+  ],
+  "sha_note": "Canonical LF-blob SHA (see .gitattributes: dataset CSVs pinned to LF so the hash is identical on every platform)"
 }
