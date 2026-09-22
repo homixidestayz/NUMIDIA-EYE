@@ -379,6 +379,21 @@ def cmd_experiment(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_verify_artifact(args: argparse.Namespace) -> int:
+    """Verify a candidate artifact against the dataset (read-only, no registration)."""
+    from numidia_ml import verify_artifact as V
+
+    result = V.verify_artifact(args.artifact, args.dataset, args.metrics, tol=args.tol)
+    print("--- verify-artifact ---", flush=True)
+    for c in result["checks"]:
+        print(f"[{'PASS' if c['ok'] else 'FAIL'}] {c['check']} :: {c['detail']}", flush=True)
+    if result["pass"]:
+        print("[OK] candidate eligible for review (registration still requires approval).")
+        return 0
+    print("[ERROR] candidate FAILED verification - do not register.", flush=True)
+    return 2
+
+
 def cmd_audit(args: argparse.Namespace) -> int:
     """Bias audit. Reads v1 read-only; proves immutability via SHA before/after."""
     from numidia_ml import audit as A
@@ -788,6 +803,14 @@ def main(argv: list[str] | None = None) -> int:
     px.add_argument("--out", default=str(REPO_ROOT / "services" / "ml" / "models" / "exp_v1"))
     px.add_argument("--report", default=str(REPO_ROOT / "docs" / "model-experiment-v1.md"))
     px.set_defaults(func=cmd_experiment)
+
+    pv = sub.add_parser("verify-artifact",
+                        help="verify a candidate artifact (read-only, never registers)")
+    pv.add_argument("--artifact", required=True, help="candidate .joblib pipeline")
+    pv.add_argument("--dataset", default=str(DEFAULT_OUT / "firms_labels_v2.csv"))
+    pv.add_argument("--metrics", default=None, help="metrics.json recorded with the artifact")
+    pv.add_argument("--tol", type=float, default=1e-4)
+    pv.set_defaults(func=cmd_verify_artifact)
 
     args = parser.parse_args(argv)
     return args.func(args)
