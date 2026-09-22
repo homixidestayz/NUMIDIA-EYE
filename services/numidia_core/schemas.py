@@ -6,7 +6,10 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict
 
-DataState = Literal["LIVE", "HISTORICAL", "SAMPLE", "DEMO", "UNAVAILABLE"]
+# LIVE and HISTORICAL describe detection freshness; STALE means the ingestion
+# pipeline itself is too old to trust (never shown as LIVE); SAMPLE/DEMO are
+# for explicitly labelled non-production views; UNAVAILABLE = no data at all.
+DataState = Literal["LIVE", "HISTORICAL", "STALE", "SAMPLE", "DEMO", "UNAVAILABLE"]
 
 
 class Detection(BaseModel):
@@ -17,12 +20,12 @@ class Detection(BaseModel):
     detection_id: str
     lat: float
     lon: float
-    acq_datetime: datetime
+    acq_datetime: datetime      # source timestamp (satellite observation, UTC)
     acq_date: str
     acq_time: str
     satellite: Optional[str] = None
     instrument: Optional[str] = None
-    confidence: Optional[float] = None      # normalized 0..1 (Never fabricated)
+    confidence: Optional[float] = None      # normalized 0..1 (never fabricated)
     confidence_raw: Optional[str] = None    # original FIRMS value
     bright_ti4: Optional[float] = None      # I4 band brightness temp (K)
     bright_ti5: Optional[float] = None      # I5 band brightness temp (K)
@@ -32,10 +35,12 @@ class Detection(BaseModel):
     daynight: Optional[str] = None          # D / N
     version: Optional[str] = None           # e.g. 2.0NRT
     source: str                             # e.g. VIIRS_NOAA21_NRT
-    source_url: Optional[str] = None
-    fetched_at: datetime
+    source_url: Optional[str] = None        # API key ALWAYS redacted
+    fetched_at: datetime                    # ingestion timestamp (UTC)
+    wilaya_code: Optional[str] = None       # e.g. "16" (GIS enrichment)
+    wilaya_name: Optional[str] = None       # e.g. "Alger" (GIS enrichment)
     state: DataState = "HISTORICAL"
-    # AI fields are absent until an actual model exists. We do not fake them.
+    # AI fields are absent until an actual evaluated model exists.
 
 
 class AiResult(BaseModel):
@@ -47,6 +52,19 @@ class AiResult(BaseModel):
     message: str
 
 
+class IngestRun(BaseModel):
+    run_id: Optional[int] = None
+    started_at: datetime
+    finished_at: Optional[datetime] = None
+    mode: str                                # api | archive | skipped
+    sources: list[str] = []
+    urls: list[str] = []                     # redacted
+    count_new: int = 0
+    count_total: int = 0
+    status: str                              # ok | error | skipped
+    message: str = ""
+
+
 class Incident(BaseModel):
     id: str
     status: str = "OPEN"
@@ -54,7 +72,7 @@ class Incident(BaseModel):
 
 
 class SystemStatus(BaseModel):
-    firms: str = "NOT_CONFIGURED"      # CONNECTED / UNAVAILABLE / NOT_CONFIGURED
+    firms: str = "NOT_CONFIGURED"      # CONNECTED / STALE / DEGRADED / NOT_CONFIGURED / STARTING
     firms_last_fetch: Optional[datetime] = None
     ai: str = "UNAVAILABLE"            # READY / UNAVAILABLE
     model: Optional[str] = None

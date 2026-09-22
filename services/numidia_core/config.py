@@ -39,3 +39,23 @@ NUMIDIA_API_PORT = int(os.getenv("NUMIDIA_API_PORT", "8000"))
 
 # A detection is "LIVE" while its acquisition time is this fresh.
 LIVE_WINDOW_HOURS = 26.0
+
+# --- Production database & ingestion -------------------------------------
+_db_env = os.getenv("NUMIDIA_DB_PATH", "").strip()
+DB_PATH = Path(_db_env) if _db_env else DATA_DIR / "db" / "numidia.db"
+
+# Scheduler: fetch fresh detections this often (minutes). Server-side only.
+INGEST_INTERVAL_MIN = int(os.getenv("NUMIDIA_INGEST_INTERVAL_MIN", "30"))
+# Data older than this without a successful ingest run is STALE, never LIVE.
+INGEST_STALE_AFTER_MIN = int(os.getenv("NUMIDIA_STALE_AFTER_MIN", "180"))
+# Ingestion mode: "api" (NRT, requires FIRMS_MAP_KEY - the production path)
+# or "archive" (public archives, explicit backfill/testing only).
+INGEST_MODE = os.getenv("NUMIDIA_INGEST_MODE", "api").strip().lower()
+INGEST_DAY = int(os.getenv("NUMIDIA_INGEST_DAY", "1"))
+
+DISABLE_SCHEDULER = os.getenv("NUMIDIA_DISABLE_SCHEDULER", "").strip().lower() in (
+    "1", "true", "yes",
+)
+
+# Path to a TRAINED + EVALUATED verifier model. Empty/absent = no AI served.
+ACTIVE_MODEL = os.getenv("NUMIDIA_ACTIVE_MODEL", "").strip()

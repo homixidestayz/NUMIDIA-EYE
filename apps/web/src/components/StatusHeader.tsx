@@ -11,6 +11,11 @@ interface Props {
 
 export default function StatusHeader({ status, lang, dict, onToggleLang }: Props) {
   const state = status?.data_state ?? "UNAVAILABLE";
+  const stateLabel =
+    state === "LIVE" ? dict.live
+    : state === "HISTORICAL" ? dict.historical
+    : state === "STALE" ? dict.stale
+    : dict.unavailable;
   return (
     <header className="header">
       <div className="brand">
@@ -24,7 +29,7 @@ export default function StatusHeader({ status, lang, dict, onToggleLang }: Props
 
       <div className="badges">
         <span className={`chip chip-${state.toLowerCase()}`}>
-          {state === "LIVE" ? dict.live : state === "HISTORICAL" ? dict.historical : dict.unavailable}
+          {stateLabel}
         </span>
         <span className="chip chip-ai" title={dict.ai_unavailable}>
           {dict.ai_status}: {dict.ai_unavailable}

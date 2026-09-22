@@ -55,6 +55,20 @@ def confidence_to_num(raw) -> float | None:
         return None
 
 
+def redact_url(url: str | None, map_key: str | None = None) -> str | None:
+    """Redact the FIRMS MAP_KEY from a URL before storage or API exposure.
+
+    NRT Area API URLs embed the secret key; it must never reach the database,
+    logs-as-data, or any client. The key lives server-side only (env).
+    """
+    if not url:
+        return url
+    key = (map_key or FIRMS_MAP_KEY).strip()
+    if key and key in url:
+        return url.replace(key, "{FIRMS_MAP_KEY}")
+    return url
+
+
 def _detection_id(lat, lon, acq_iso, satellite, source) -> str:
     h = hashlib.sha1(f"{lat}|{lon}|{acq_iso}|{satellite}|{source}".encode("utf-8"))
     return h.hexdigest()[:16]

@@ -44,6 +44,9 @@ export default function App() {
         onToggleLang={() => setLang((p) => (p === "en" ? "ar" : "en"))}
       />
       {apiError && <div className="banner banner-warn">{apiError}</div>}
+      {status?.data_state === "STALE" && (
+        <div className="banner banner-warn">{dict.stale}</div>
+      )}
       <div className="main">
         <DetectionMap detections={detections} lang={lang} dict={dict} />
         <Sidebar status={status} detections={detections} lang={lang} dict={dict} />

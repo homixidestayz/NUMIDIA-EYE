@@ -3,8 +3,8 @@ name: firms-ingestion
 on:
   workflow_dispatch:
   schedule:
-    # Daily 06:05 UTC - refresh the real VIIRS snapshot for Algeria
-    - cron: "5 6 * * *"
+    # Every 30 min - production ingestion rhythm for near-real-time VIIRS
+    - cron: "*/30 * * * *"
 
 permissions:
   contents: read
@@ -22,21 +22,20 @@ jobs:
       - name: Install
         run: uv sync --extra dev
 
-      - name: Fetch real FIRMS/VIIRS detections (Algeria bbox)
-        run: uv run python -m numidia_worker.cli fetch --map-key "${{ secrets.FIRMS_MAP_KEY }}"
+      - name: Tests (fixture-only, offline)
+        run: uv run pytest -q
+
+      - name: Production ingestion run (FIRMS NRT API, server-side key)
+        env:
+          FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
+        run: uv run python -m numidia_worker.cli fetch
         # Fails loudly (exit 2) if the key is missing or FIRMS is down -
-        # the worker never fabricates data in place of a failed source.
+        # the worker records error/skipped runs, never fabricates data.
 
-      - name: Derive real features
-        run: uv run python -m numidia_worker.cli process
-
-      - name: Upload artifact
+      - name: Upload audit snapshot
         uses: actions/upload-artifact@v4
         with:
-          name: firms-snapshot
-          path: |
-            data/raw/firms/*.csv
-            data/processed/firms_features.csv
-            data/processed/firms_features_status.json
+          name: firms-audit-snapshot
+          path: data/raw/firms/*.csv
           if-no-files-found: error
           retention-days: 14

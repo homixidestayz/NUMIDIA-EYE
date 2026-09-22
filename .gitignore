@@ -9,12 +9,17 @@ venv/
 # Environment
 .env
 
-# Derived/regenerable data
+# Runtime-regenerable data (audit snapshots, processed artifacts, app DB).
+# NEVER a source of truth - production reads the database, tests use fixtures.
 data/raw/firms/*
-!data/raw/firms/viirs_noaa21_1d.csv
+!data/raw/firms/.gitkeep
 data/processed/*.parquet
 data/processed/*.json
 data/evaluation/*
+data/db/
+*.db
+*.db-wal
+*.db-shm
 
 # ML artifacts
 services/ml/models/*

@@ -256,6 +256,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "requests" },
+    { name = "shapely" },
 ]
 
 [package.optional-dependencies]
@@ -290,6 +291,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "requests", specifier = ">=2.32" },
     { name = "scikit-learn", marker = "extra == 'ml'", specifier = ">=1.5" },
+    { name = "shapely", specifier = ">=2.0" },
     { name = "shapely", marker = "extra == 'ml'", specifier = ">=2.0" },
     { name = "uvicorn", marker = "extra == 'api'", specifier = ">=0.30" },
 ]

@@ -39,7 +39,7 @@ export default function Sidebar({ status, detections, lang, dict }: Props) {
       <h2>{dict.list_title}</h2>
       <ul className="det-list">
         {detections.slice(0, 40).map((d) => (
-          <li key={d.detection_id} onClick={() => window.open(`#/det/${d.detection_id}`, "_self")}>
+          <li key={d.detection_id}>
             <span className={`dot ${d.state === "LIVE" ? "dot-live" : "dot-hist"}`} />
             <div className="row">
               <b>{d.frp.toFixed(1)} MW</b>

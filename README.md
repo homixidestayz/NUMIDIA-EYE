@@ -5,69 +5,91 @@
 > REAL FIRMS/VIIRS satellite data → REAL processing → REAL trained AI → REAL output.
 > No fabricated data, no hard-coded AI, no mock presented as live.
 
-## Status
+## Production architecture (built directly — no demo layer)
+
+```
+NASA FIRMS NRT API (server-side key)
+        │  scheduled fetch (API service, default every 30 min) or worker CLI
+        ▼
+normalize → validate → feature extraction (7 real features)
+        │  GIS enrichment (wilaya point-in-polygon, 48 units)
+        ▼
+application database (SQLite WAL): detections + ingest_runs
+        │  freshness enforced: LIVE requires fresh acquisition AND fresh run
+        ▼
+FastAPI → React dashboard (EN/العربية RTL)
+        │  ML hook: trained verifier runs here once it exists
+        ▼  (today: explicit 503 AI_UNAVAILABLE — never faked)
+fire / non-fire / uncertain → incidents → reports → prototype alerts
+```
 
 | Layer | State |
 |---|---|
-| Real satellite ingestion (FIRMS/VIIRS) | ✅ worker + core — verified live: **1231 real detections** pulled from NASA's public archives (no key), Algeria bbox |
-| Real processing features | ✅ 7 derived features (`f_bt_diff`, `f_frp`, ...) over 1231 detections |
-| API boundary (FastAPI) | ✅ detections / status / provenance; AI & incidents return explicit `UNAVAILABLE` |
-| Frontend (React + TS + maplibre, EN/العربية) | 🚧 scaffold written (`apps/web`) — build not verified here (no Node toolchain in this env) |
-| Trained AI verifier | ⛔ not yet — needs a labelled dataset (see services/ml/README.md) |
+| Real satellite ingestion (FIRMS NRT API + archive backfill) | ✅ `numidia_core` + `numidia_worker`, provenance + key redaction |
+| Processing + GIS enrichment | ✅ 7 features + wilaya assignment, stored per detection |
+| Application database + freshness | ✅ SQLite; LIVE / HISTORICAL / **STALE** / UNAVAILABLE enforced |
+| API boundary | ✅ detections / status / provenance; AI + incidents explicit `UNAVAILABLE` |
+| Dashboard scaffold (React + TS + maplibre, EN/العربية) | 🚧 written; build unverified here (no Node toolchain in this env) |
+| Trained AI verifier | ⛔ blocked on labels — see `docs/labeling-proposal.md` (decision needed) |
 
-## Monorepo layout
-
-```
-apps/web            React + TypeScript + Vite + maplibre-gl (EN/AR RTL)
-services/core       numidia_core — schemas, FIRMS ingestion, processing, storage
-services/worker     numidia_worker — ingestion CLI (runs in CI or locally)
-services/api        numidia_api — FastAPI boundary
-services/ml         numidia_ml — training + inference (next phase)
-data/raw/firms      real FIRMS/VIIRS snapshots (sample committed)
-data/processed      canonical detections + derived features (regenerated)
-data/gis            Algeria wilaya polygons (geoBoundaries, CC-BY-4.0)
-data/evaluation     model evaluation artifacts (later)
-```
-
-## Quick start
+## Production setup
 
 ```bash
+cp .env.example .env
+# edit .env: set FIRMS_MAP_KEY (free key, server-side only — never committed,
+# never sent to clients; it is redacted from every stored URL and response)
 uv sync --extra api --extra dev
 
-# ingest the latest live detections (API mode needs FIRMS_MAP_KEY in .env;
-# without a key the worker falls back to NASA public archives — no key needed)
+# one production ingestion run (NRT API; needs the key)
 uv run python -m numidia_worker.cli fetch
+# explicit archive backfill (no key; provenance recorded as "archive")
+uv run python -m numidia_worker.cli fetch --mode archive
 
-# process features (works offline on the committed sample, or on fetched snapshots)
-uv run python -m numidia_worker.cli process --input data/raw/firms/<snapshot>.csv
-
-# run the API
-uv run uvicorn numidia_api.app:app --reload
+# run the API (starts the scheduler: ingestion every NUMIDIA_INGEST_INTERVAL_MIN)
+uv run uvicorn numidia_api.app:app --host 0.0.0.0 --port 8000
 # → http://localhost:8000/docs
 
-# frontend (React + Vite + maplibre, EN/العربية RTL)
-cd apps/web
-npm install
-npm run dev
-# → http://localhost:5173  (Node >= 18 required; not present in the build env,
-# so the scaffold is committed unverified for now)
+# frontend
+cd apps/web && npm install && npm run dev   # Node >= 18 (not in this build env)
 ```
+
+Without `FIRMS_MAP_KEY` the scheduler records `skipped` runs and the API
+honestly reports STALE/UNAVAILABLE — it never invents data.
+
+## Data states (never blurred)
+
+| State | Meaning |
+|---|---|
+| LIVE | freshly acquired detection AND fresh successful ingest run |
+| HISTORICAL | real data, healthy pipeline, nothing freshly acquired (e.g. quiet period) |
+| STALE | ingestion too old to trust — served as history, never as live |
+| UNAVAILABLE | empty database / unreachable source / no AI model |
+| SAMPLE / DEMO | reserved for explicitly labelled non-production views |
+
+Test fixtures live in `tests/fixtures/` and are used **only** by automated
+tests. `data/raw/firms/` holds gitignored audit snapshots; nothing under
+`data/` is ever served as production data.
 
 ## Data & AI integrity (non-negotiable)
 
-- Every value displayed has a source + timestamp where applicable.
-- **LIVE** / **HISTORICAL** / **SAMPLE** / **DEMO** / **UNAVAILABLE** states are never blurred.
-- AI output comes only from an actual trained model evaluated on real data — otherwise the UI and API return `AI_UNAVAILABLE`.
-- The prototype alert workflow is never presented as an official Civil Protection integration.
+- Every served value traces to FIRMS/VIIRS + ingest-run provenance.
+- AI output comes only from a trained, evaluated model registered via
+  `NUMIDIA_ACTIVE_MODEL` — otherwise API and UI return `AI_UNAVAILABLE`.
+- No LLM substitutes for the verifier (LLMs may later explain results, only
+  after a real model verdict exists).
+- Prototype alerts are never presented as Civil Protection integration.
 
-## Data sources
+## Sources
 
-| Source | Purpose | Access |
-|---|---|---|
-| NASA FIRMS NRT API | VIIRS active-fire detections, Algeria bbox `(-9,18,12,38)` | free `FIRMS_MAP_KEY` |
-| NASA FIRMS public archives | 24h/48h/7d global CSVs (fallback) | none |
-| geoBoundaries (DZA ADM1) | 58 wilayas — boundaries for GIS context | bundled GeoJSON |
+| Source | Role |
+|---|---|
+| NASA FIRMS NRT Area API (`VIIRS_*_NRT`, Algeria bbox) | production source of truth |
+| NASA FIRMS public archives | explicit backfill/testing only |
+| geoBoundaries Algeria ADM1 (48 units, bundled) | wilaya GIS enrichment |
+| Label candidates for the verifier | `docs/labeling-proposal.md` |
 
-## Roadmap (priority order)
+## Roadmap
 
-real satellite data ✅ → real AI model → AI integration → Algeria map/GIS → incident page → weather/environment → report → prototype alert workflow → affected-area mapping → extras.
+ingestion ✅ → processing+GIS ✅ → DB+freshness ✅ → dashboard 🚧 →
+**labels decision** ⏳ → train verifier → wire `/ai` → incidents → weather →
+reports → prototype alerts → affected-area mapping.
