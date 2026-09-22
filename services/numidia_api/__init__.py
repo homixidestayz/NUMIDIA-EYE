@@ -1,0 +1,1 @@
+"""numidia_api - FastAPI boundary for NUMIDIA EYE."""

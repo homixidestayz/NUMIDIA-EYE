@@ -1,0 +1,29 @@
+[project]
+name = "numidia-eye"
+version = "0.1.0"
+description = "NUMIDIA EYE - AI-powered wildfire intelligence for Algeria (independent prototype, non-official)"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "pydantic>=2.8",
+    "requests>=2.32",
+    "python-dotenv>=1.0",
+    "pyarrow>=17",
+]
+
+[project.optional-dependencies]
+api = ["fastapi>=0.115", "uvicorn>=0.30", "httpx>=0.27"]
+ml = ["scikit-learn>=1.5", "joblib>=1.4", "geopandas>=1.0", "shapely>=2.0", "pyogrio>=0.9"]
+dev = ["pytest>=8.3"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["services"]
+include = ["numidia_core*", "numidia_worker*", "numidia_api*", "numidia_ml*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,1 @@
+"""numidia_worker - ingestion/processing CLI."""

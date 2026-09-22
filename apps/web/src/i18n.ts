@@ -1,0 +1,64 @@
+import type { Lang } from "./types";
+
+const strings = {
+  en: {
+    title: "NUMIDIA EYE",
+    subtitle: "Wildfire intelligence for Algeria — real satellite data only",
+    independent: "Independent prototype · non-official",
+    live: "LIVE",
+    historical: "HISTORICAL",
+    unavailable: "UNAVAILABLE",
+    ai_status: "AI verifier",
+    ai_unavailable: "not trained — no fabricated probabilities",
+    alerts_prototype: "Alerts are a prototype workflow, NOT connected to Civil Protection",
+    firms: "FIRMS/VIIRS source",
+    detections: "detections",
+    live_now: "live now",
+    sources: "sources",
+    satellites: "satellites",
+    last_fetch: "last fetch",
+    map_title: "Real VIIRS detections (Algeria bbox)",
+    list_title: "Latest detections",
+    load_error: "API unreachable — showing UNAVAILABLE state (this is honest, not broken)",
+    frp: "FRP",
+    confidence: "confidence",
+    acquired: "acquired",
+    source: "source",
+    no_ai: "AI: unavailable",
+    lang: "العربية",
+    incidents: "Incidents: pending (needs trained verifier)",
+  },
+  ar: {
+    title: "عين نوميديا",
+    subtitle: "استخبارات حرائق الغابات للجزائر — بيانات أقمار حقيقية فقط",
+    independent: "نموذج أولي مستقل · غير رسمي",
+    live: "مباشر",
+    historical: "تاريخي",
+    unavailable: "غير متوفر",
+    ai_status: "المدقق الذكي",
+    ai_unavailable: "غير مدرَّب بعد — لا احتمالات مختلَقة",
+    alerts_prototype: "التنبيهات نموذج أولي، غير مرتبطة بالحماية المدنية",
+    firms: "مصدر FIRMS/VIIRS",
+    detections: "كشف",
+    live_now: "مباشر الآن",
+    sources: "مصادر",
+    satellites: "أقمار",
+    last_fetch: "آخر جلب",
+    map_title: "بيانات VIIRS الحقيقية (مربع الجزائر)",
+    list_title: "أحدث الكشوفات",
+    load_error: "الخادم غير متاح — تُعرض حالة غير متوفر (هذه الحالة صادقة)",
+    frp: "قدرة الإشعاع",
+    confidence: "الثقة",
+    acquired: "الالتقاط",
+    source: "المصدر",
+    no_ai: "الذكاء الاصطناعي: غير متوفر",
+    lang: "English",
+    incidents: "الحوادث: قيد الإعداد (يتطلب مدققًا مدرَّبًا)",
+  },
+} as const;
+
+export type Dict = (typeof strings)["en"];
+
+export function t(lang: Lang): Dict {
+  return strings[lang];
+}

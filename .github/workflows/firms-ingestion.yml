@@ -1,0 +1,42 @@
+name: firms-ingestion
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Daily 06:05 UTC - refresh the real VIIRS snapshot for Algeria
+    - cron: "5 6 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: uv sync --extra dev
+
+      - name: Fetch real FIRMS/VIIRS detections (Algeria bbox)
+        run: uv run python -m numidia_worker.cli fetch --map-key "${{ secrets.FIRMS_MAP_KEY }}"
+        # Fails loudly (exit 2) if the key is missing or FIRMS is down -
+        # the worker never fabricates data in place of a failed source.
+
+      - name: Derive real features
+        run: uv run python -m numidia_worker.cli process
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firms-snapshot
+          path: |
+            data/raw/firms/*.csv
+            data/processed/firms_features.csv
+            data/processed/firms_features_status.json
+          if-no-files-found: error
+          retention-days: 14

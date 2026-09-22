@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Environment
+.env
+
+# Derived/regenerable data
+data/raw/firms/*
+!data/raw/firms/viirs_noaa21_1d.csv
+data/processed/*.parquet
+data/processed/*.json
+data/evaluation/*
+
+# ML artifacts
+services/ml/models/*
+services/ml/artifacts/*
+
+# Node
+node_modules/
+apps/web/dist/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
