@@ -1,4 +1,4 @@
-import type { AiResult, Detection, SystemStatus } from "./types";
+import type { AiResult, Detection, IncidentList, SystemData, SystemStatus } from "./types";
 
 const BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
@@ -10,10 +10,13 @@ async function get<T>(path: string): Promise<T> {
 
 export const api = {
   status: () => get<SystemStatus>("/system/status"),
+  systemData: () => get<SystemData>("/system/data"),
   detections: (limit = 500) => get<Detection[]>(`/detections?limit=${limit}`),
-  detection: (id: string) => get<Detection>(`/detections/${id}`),
+  recent: (limit = 50) => get<Detection[]>(`/detections/recent?limit=${limit}`),
+  detection: (id: string) => get<Detection>(`/detections/${encodeURIComponent(id)}`),
+  incidents: (limit = 100) => get<IncidentList>(`/incidents?limit=${limit}`),
   ai: async (id: string): Promise<AiResult> => {
-    const res = await fetch(`${BASE}/detections/${id}/ai`);
+    const res = await fetch(`${BASE}/detections/${encodeURIComponent(id)}/ai`);
     // AI is served as an explicit 503 with a structured body.
     const body = (await res.json()) as AiResult;
     return body;

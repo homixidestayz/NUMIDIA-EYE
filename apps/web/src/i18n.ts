@@ -28,6 +28,9 @@ const strings = {
     no_ai: "AI: unavailable",
     lang: "العربية",
     incidents: "Incidents: pending (needs trained verifier)",
+    details: "Detection detail",
+    detail_unavailable: "Authoritative detail unavailable — showing list values",
+    close: "Close",
   },
   ar: {
     title: "عين نوميديا",
@@ -56,10 +59,13 @@ const strings = {
     no_ai: "الذكاء الاصطناعي: غير متوفر",
     lang: "English",
     incidents: "الحوادث: قيد الإعداد (يتطلب مدققًا مدرَّبًا)",
+    details: "تفاصيل الكشف",
+    detail_unavailable: "التفاصيل الموثوقة غير متوفرة — تُعرض قيم القائمة",
+    close: "إغلاق",
   },
 } as const;
 
-export type Dict = (typeof strings)["en"];
+export type Dict = { [K in keyof typeof strings.en]: string };
 
 export function t(lang: Lang): Dict {
   return strings[lang];

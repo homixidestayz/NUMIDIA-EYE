@@ -11,6 +11,8 @@ export default function App() {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [detections, setDetections] = useState<Detection[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [detail, setDetail] = useState<Detection | null>(null);
+  const [detailStale, setDetailStale] = useState(false);
   const dict = t(lang);
 
   useEffect(() => {
@@ -35,11 +37,31 @@ export default function App() {
     void load();
   }, [load]);
 
+  // Authoritative detail always comes from GET /detections/{id}, never from
+  // list-row values alone. On failure the list row stays visible and marked.
+  const select = useCallback(
+    async (id: string | null) => {
+      if (id === null) {
+        setDetail(null);
+        setDetailStale(false);
+        return;
+      }
+      const fallback = detections.find((d) => d.detection_id === id) ?? null;
+      try {
+        setDetail(await api.detection(id));
+        setDetailStale(false);
+      } catch {
+        setDetail(fallback);
+        setDetailStale(true);
+      }
+    },
+    [detections]
+  );
+
   return (
     <div className="app">
       <StatusHeader
         status={status}
-        lang={lang}
         dict={dict}
         onToggleLang={() => setLang((p) => (p === "en" ? "ar" : "en"))}
       />
@@ -48,8 +70,24 @@ export default function App() {
         <div className="banner banner-warn">{dict.stale}</div>
       )}
       <div className="main">
-        <DetectionMap detections={detections} lang={lang} dict={dict} />
-        <Sidebar status={status} detections={detections} lang={lang} dict={dict} />
+        <DetectionMap
+          detections={detections}
+          lang={lang}
+          dict={dict}
+          detail={detail}
+          detailStale={detailStale}
+          onSelect={(id) => void select(id)}
+        />
+        <Sidebar
+          status={status}
+          detections={detections}
+          lang={lang}
+          dict={dict}
+          detail={detail}
+          detailStale={detailStale}
+          onSelect={(id) => void select(id)}
+          onCloseDetail={() => void select(null)}
+        />
       </div>
     </div>
   );

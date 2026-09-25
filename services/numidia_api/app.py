@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -16,6 +17,7 @@ from typing import Optional
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
+from pydantic import ValidationError
 
 from numidia_core import db as db_mod
 from numidia_core import pipeline as pipeline_mod
@@ -30,6 +32,8 @@ from numidia_intel import incidents as incidents_mod
 from numidia_intel import reports as reports_mod
 
 ALGERIA_BBOX = {"lon_min": -9.0, "lat_min": 18.0, "lon_max": 12.0, "lat_max": 38.0}
+
+logger = logging.getLogger(__name__)
 
 
 def _clean(value):
@@ -118,6 +122,25 @@ def _detection_from_row(row: dict, ingest_fresh: bool, now: datetime) -> Detecti
         if key.startswith("f_"):
             payload[key] = _clean(val)
     return Detection(**payload)
+
+
+def _safe_detection_from_row(row: dict, ingest_fresh: bool, now: datetime,
+                             *, context: str) -> Detection | None:
+    """Convert one DB row for list responses; skip poison rows instead of 500ing.
+
+    A malformed row (e.g. null lat/lon/frp/detection_id) is omitted and logged
+    server-side with its id + failing fields. Nothing is defaulted, repaired,
+    or exposed to the client beyond the omission itself.
+    """
+    try:
+        return _detection_from_row(row, ingest_fresh, now)
+    except ValidationError as exc:
+        fields = sorted({".".join(str(p) for p in e.get("loc", ()))
+                         for e in exc.errors()})
+        logger.warning(
+            "skipping malformed detection row | endpoint=%s | detection_id=%s | fields=%s",
+            context, row.get("detection_id"), ",".join(fields) or "unknown")
+        return None
 
 
 def _parse_iso(value: str | None, name: str) -> datetime | None:
@@ -357,7 +380,12 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
         rows = db_mod.load_detection_rows(
             limit=limit, source=source, satellite=satellite,
             path=app.state.db_path)
-        out = [_detection_from_row(r, summary["ingest_fresh"], now) for r in rows]
+        out = []
+        for r in rows:
+            det = _safe_detection_from_row(r, summary["ingest_fresh"], now,
+                                           context="GET /detections")
+            if det is not None:
+                out.append(det)
         out = _apply_detection_filters(
             out, state=state, since=since, until=until,
             min_confidence=min_confidence, max_confidence=max_confidence,
@@ -376,7 +404,13 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
         rows = db_mod.load_detection_rows(
             limit=limit, source=source, satellite=satellite,
             path=app.state.db_path)
-        return [_detection_from_row(r, summary["ingest_fresh"], now) for r in rows]
+        out = []
+        for r in rows:
+            det = _safe_detection_from_row(r, summary["ingest_fresh"], now,
+                                           context="GET /detections/recent")
+            if det is not None:
+                out.append(det)
+        return out
 
     @app.get("/detections/{detection_id}", response_model=Detection)
     def get_detection(detection_id: str) -> Detection:

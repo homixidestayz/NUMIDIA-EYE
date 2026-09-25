@@ -1,15 +1,14 @@
 import { Flame } from "lucide-react";
-import type { Lang, SystemStatus } from "../types";
+import type { SystemStatus } from "../types";
 import type { Dict } from "../i18n";
 
 interface Props {
   status: SystemStatus | null;
-  lang: Lang;
   dict: Dict;
   onToggleLang: () => void;
 }
 
-export default function StatusHeader({ status, lang, dict, onToggleLang }: Props) {
+export default function StatusHeader({ status, dict, onToggleLang }: Props) {
   const state = status?.data_state ?? "UNAVAILABLE";
   const stateLabel =
     state === "LIVE" ? dict.live

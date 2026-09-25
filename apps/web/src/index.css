@@ -82,8 +82,10 @@ h2 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spa
 .det-list li {
   background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
   padding: 8px 10px; display: flex; gap: 8px; align-items: flex-start;
+  cursor: pointer;
 }
 .det-list li:hover { border-color: var(--accent); }
+.det-list li.selected { border-color: var(--accent); }
 .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
 .dot-live { background: var(--live); box-shadow: 0 0 6px var(--live); }
 .dot-hist { background: var(--hist); }
@@ -92,6 +94,13 @@ h2 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spa
 .row .live-tag { color: var(--live); }
 .row.small { margin-top: 2px; }
 .empty { color: var(--muted); justify-content: center; }
+
+.detail-card {
+  background: var(--bg); border: 1px solid var(--accent); border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 10px; display: flex;
+  flex-direction: column; gap: 4px; font-size: 12px;
+}
+.detail-card .row b { color: var(--text); }
 
 .lang-hint { font-size: 11px; color: var(--muted); margin-top: 14px; text-align: center; }
 

@@ -34,6 +34,8 @@ services/ml/artifacts/*
 # Node
 node_modules/
 apps/web/dist/
+apps/web/package-lock.json
+apps/web/tsconfig.tsbuildinfo
 
 # OS / editors
 .DS_Store

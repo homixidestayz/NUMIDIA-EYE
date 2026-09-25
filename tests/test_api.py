@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 os.environ["NUMIDIA_DISABLE_SCHEDULER"] = "1"
 os.environ["FIRMS_MAP_KEY"] = "TEST-SECRET-KEY-12345"
 
-from numidia_api.app import build_app  # noqa: E402
+from numidia_api.app import _safe_detection_from_row, build_app  # noqa: E402
 from numidia_core import db as db_mod  # noqa: E402
 from numidia_core import pipeline as pipeline_mod  # noqa: E402
 from numidia_core.firms import normalize_raw, redact_url  # noqa: E402
@@ -149,3 +149,82 @@ def test_empty_db_is_unavailable(empty_client):
     assert body["data_state"] == "UNAVAILABLE"
     assert body["detections_count"] == 0
     assert empty_client.get("/detections/nope").status_code == 404
+
+
+def _poison_db(path) -> None:
+    """Two valid rows + one NULL-detection_id poison row (SQLite PK quirk).
+
+    lat/lon/frp carry NOT NULL constraints so they cannot be staged through
+    the DB; they are covered at converter level below.
+    """
+    import sqlite3
+
+    db_mod.init_db(path)
+    now = datetime.now(timezone.utc).isoformat()
+    df = pd.DataFrame([
+        {"detection_id": "V-1", "lat": 36.70, "lon": 3.10,
+         "acq_datetime": now, "fetched_at": now,
+         "satellite": "N21", "frp": 5.0, "source": "VIIRS_NOAA21_NRT"},
+        {"detection_id": "V-2", "lat": 36.71, "lon": 3.11,
+         "acq_datetime": now, "fetched_at": now,
+         "satellite": "N20", "frp": 4.0, "source": "VIIRS_NOAA20_NRT"},
+    ])
+    db_mod.upsert_detections(df, path)
+    with db_mod.connect(path) as conn:
+        conn.execute(
+            "INSERT INTO detections (detection_id, lat, lon, acq_datetime,"
+            " frp, source, fetched_at) VALUES (NULL, 36.72, 3.12, ?, 9.0,"
+            " 'VIIRS_NOAA21_NRT', ?)", (now, now))
+        conn.commit()
+    db_mod.record_run(mode="api", sources=["VIIRS_NOAA21_NRT"], urls=[],
+                      count_new=2, count_total=3, status="ok",
+                      message="seed", path=path)
+
+
+def test_poison_rows_skipped_not_500(tmp_path, caplog):
+    """Regression: malformed rows are omitted + logged, never 500 the batch."""
+    import logging
+
+    db = tmp_path / "poison.db"
+    _poison_db(db)
+    with TestClient(build_app(db)) as c:
+        with caplog.at_level(logging.WARNING, logger="numidia_api.app"):
+            body = c.get("/detections", params={"limit": 500})
+        assert body.status_code == 200, body.text[:200]
+        ids = {d["detection_id"] for d in body.json()}
+        assert ids == {"V-1", "V-2"}  # poison row omitted, valid rows kept
+
+        recent = c.get("/detections/recent", params={"limit": 50})
+        assert recent.status_code == 200
+        assert {d["detection_id"] for d in recent.json()} == {"V-1", "V-2"}
+
+        detail = c.get("/detections/V-1")  # valid detail path unchanged
+        assert detail.status_code == 200
+        assert detail.json()["detection_id"] == "V-1"
+
+    logged = " ".join(r.getMessage() for r in caplog.records)
+    assert "malformed detection row" in logged
+    assert "GET /detections" in logged
+    assert "detection_id" in logged
+
+
+def test_poison_fields_skipped_at_converter_level(caplog):
+    """lat/lon/frp/detection_id None each skip (DB constraints block 3 of 4)."""
+    import logging
+
+    now = datetime.now(timezone.utc)
+    base = {"detection_id": "POISON-x", "lat": 36.7, "lon": 3.1,
+            "acq_datetime": now.isoformat(), "acq_date": "2026-09-20",
+            "acq_time": "1200", "frp": 1.0, "source": "S",
+            "fetched_at": now.isoformat()}
+    with caplog.at_level(logging.WARNING, logger="numidia_api.app"):
+        for field in ("lat", "lon", "frp", "detection_id"):
+            bad = dict(base)
+            bad[field] = None
+            assert _safe_detection_from_row(bad, True, now,
+                                            context="TEST") is None, field
+        good = _safe_detection_from_row(dict(base), True, now, context="TEST")
+        assert good is not None and good.detection_id == "POISON-x"
+    logged = " ".join(r.getMessage() for r in caplog.records)
+    for field in ("lat", "lon", "frp", "detection_id"):
+        assert field in logged, field
