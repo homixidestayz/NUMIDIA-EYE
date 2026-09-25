@@ -24,7 +24,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["services"]
-include = ["numidia_core*", "numidia_worker*", "numidia_api*", "numidia_ml*"]
+include = ["numidia_core*", "numidia_worker*", "numidia_api*", "numidia_ml*", "numidia_intel*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

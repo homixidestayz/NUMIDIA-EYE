@@ -24,6 +24,10 @@ from numidia_core.config import (
     LIVE_WINDOW_HOURS,
 )
 from numidia_core.schemas import AiResult, Detection, SystemStatus
+from numidia_intel import alerts as alerts_mod
+from numidia_intel import assistant as assistant_mod
+from numidia_intel import incidents as incidents_mod
+from numidia_intel import reports as reports_mod
 
 ALGERIA_BBOX = {"lon_min": -9.0, "lat_min": 18.0, "lon_max": 12.0, "lat_max": 38.0}
 
@@ -78,6 +82,10 @@ def _detection_from_row(row: dict, ingest_fresh: bool, now: datetime) -> Detecti
             acq_time = str(int(acq_time)).zfill(4)
         except (ValueError, TypeError):
             pass
+    # Harden against legacy rows missing derived fields: fall back to the
+    # authoritative acquisition timestamp (never invent, only re-derive).
+    acq_date = _clean(row.get("acq_date")) or acq.strftime("%Y-%m-%d")
+    acq_time = acq_time or acq.strftime("%H%M")
 
     state = _row_state(acq_iso, ingest_fresh, now)
     payload = {
@@ -85,7 +93,7 @@ def _detection_from_row(row: dict, ingest_fresh: bool, now: datetime) -> Detecti
         "lat": _clean(row.get("lat")),
         "lon": _clean(row.get("lon")),
         "acq_datetime": acq,
-        "acq_date": _clean(row.get("acq_date")),
+        "acq_date": acq_date,
         "acq_time": acq_time,
         "satellite": _clean(row.get("satellite")),
         "instrument": _clean(row.get("instrument")),
@@ -110,6 +118,69 @@ def _detection_from_row(row: dict, ingest_fresh: bool, now: datetime) -> Detecti
         if key.startswith("f_"):
             payload[key] = _clean(val)
     return Detection(**payload)
+
+
+def _parse_iso(value: str | None, name: str) -> datetime | None:
+    if value is None:
+        return None
+    try:
+        ts = datetime.fromisoformat(value)
+    except ValueError:
+        raise HTTPException(status_code=400,
+                            detail=f"malformed {name} (expected ISO datetime)")
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return ts
+
+
+def _parse_bbox(value: str | None) -> tuple[float, float, float, float] | None:
+    if value is None:
+        return None
+    try:
+        lon_min, lat_min, lon_max, lat_max = (float(p) for p in value.split(","))
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="malformed bbox (expected lon_min,lat_min,lon_max,lat_max)")
+    if not (lon_min <= lon_max and lat_min <= lat_max):
+        raise HTTPException(status_code=400,
+                            detail="malformed bbox (min must be <= max)")
+    return lon_min, lat_min, lon_max, lat_max
+
+
+def _apply_detection_filters(
+    dets: list[Detection], *, state=None, since=None, until=None,
+    min_confidence=None, max_confidence=None, min_frp=None,
+    max_frp=None, bbox=None,
+) -> list[Detection]:
+    """Post-filters over the most-recent `limit` rows (documented semantic)."""
+    since_ts = _parse_iso(since, "since")
+    until_ts = _parse_iso(until, "until")
+    box = _parse_bbox(bbox)
+    out = []
+    for d in dets:
+        if state and d.state != state:
+            continue
+        if since_ts and d.acq_datetime < since_ts:
+            continue
+        if until_ts and d.acq_datetime > until_ts:
+            continue
+        if min_confidence is not None and (d.confidence is None
+                                           or d.confidence < min_confidence):
+            continue
+        if max_confidence is not None and (d.confidence is None
+                                           or d.confidence > max_confidence):
+            continue
+        if min_frp is not None and d.frp < min_frp:
+            continue
+        if max_frp is not None and d.frp > max_frp:
+            continue
+        if box:
+            lon_min, lat_min, lon_max, lat_max = box
+            if not (lon_min <= d.lon <= lon_max and lat_min <= d.lat <= lat_max):
+                continue
+        out.append(d)
+    return out
 
 
 async def _scheduler_loop(db_path: Path, stop: asyncio.Event) -> None:
@@ -268,6 +339,17 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
         state: Optional[str] = Query(
             default=None,
             pattern="^(LIVE|HISTORICAL|STALE|SAMPLE|DEMO|UNAVAILABLE)$"),
+        since: Optional[str] = Query(
+            default=None, description="ISO datetime; keep acq_datetime >= since"),
+        until: Optional[str] = Query(
+            default=None, description="ISO datetime; keep acq_datetime <= until"),
+        min_confidence: Optional[float] = Query(default=None, ge=0.0, le=1.0),
+        max_confidence: Optional[float] = Query(default=None, ge=0.0, le=1.0),
+        min_frp: Optional[float] = Query(default=None, ge=0.0),
+        max_frp: Optional[float] = Query(default=None, ge=0.0),
+        bbox: Optional[str] = Query(
+            default=None,
+            description="lon_min,lat_min,lon_max,lat_max (WGS84)"),
         limit: int = Query(default=100, ge=1, le=1000),
     ) -> list[Detection]:
         summary = _summary()
@@ -276,9 +358,25 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
             limit=limit, source=source, satellite=satellite,
             path=app.state.db_path)
         out = [_detection_from_row(r, summary["ingest_fresh"], now) for r in rows]
-        if state:
-            out = [d for d in out if d.state == state]
+        out = _apply_detection_filters(
+            out, state=state, since=since, until=until,
+            min_confidence=min_confidence, max_confidence=max_confidence,
+            min_frp=min_frp, max_frp=max_frp, bbox=bbox)
         return out
+
+    @app.get("/detections/recent", response_model=list[Detection])
+    def recent_detections(
+        source: Optional[str] = None,
+        satellite: Optional[str] = None,
+        limit: int = Query(default=50, ge=1, le=1000),
+    ) -> list[Detection]:
+        """Most recent detections first (same item shape as /detections)."""
+        summary = _summary()
+        now = datetime.now(timezone.utc)
+        rows = db_mod.load_detection_rows(
+            limit=limit, source=source, satellite=satellite,
+            path=app.state.db_path)
+        return [_detection_from_row(r, summary["ingest_fresh"], now) for r in rows]
 
     @app.get("/detections/{detection_id}", response_model=Detection)
     def get_detection(detection_id: str) -> Detection:
@@ -301,14 +399,80 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
                         message=verify["message"])
 
     @app.get("/incidents")
-    def list_incidents() -> dict:
+    def list_incidents(limit: int = Query(default=100, ge=1, le=1000)) -> dict:
+        """Real incident clusters grouped from stored detections.
+
+        Statuses are SINGLE_OBSERVATION / UNVERIFIED_CLUSTER - never
+        "confirmed wildfire". Empty database -> honest EMPTY state.
+        """
+        items = incidents_mod.list_incidents(limit=limit, path=app.state.db_path)
         return {
-            "status": "NOT_IMPLEMENTED",
-            "incidents": [],
-            "message": ("Incident clustering needs the AI-verified detections "
-                        "pipeline; not available until the verifier model is "
-                        "trained on labeled data. No invented incidents."),
+            "status": "OK" if items else "EMPTY",
+            "count": len(items),
+            "incidents": [incidents_mod.validate_summary(s) for s in items],
+            "methodology": incidents_mod.methodology(),
+            "note": ("Incidents are deterministic spatiotemporal groupings of "
+                     "real FIRMS detections, not confirmed wildfires. "
+                     "Verification state is attached per incident."),
         }
+
+    @app.get("/incidents/{incident_id}")
+    def get_incident(incident_id: str) -> dict:
+        detail = incidents_mod.get_incident(incident_id, path=app.state.db_path)
+        if detail is None:
+            raise HTTPException(status_code=404, detail="incident not found")
+        return incidents_mod.validate_detail(detail)
+
+    @app.get("/incidents/{incident_id}/report")
+    def get_incident_report(incident_id: str) -> dict:
+        report = reports_mod.build_report(incident_id, path=app.state.db_path)
+        if report is None:
+            raise HTTPException(status_code=404, detail="incident not found")
+        return reports_mod.validate_report(report)
+
+    @app.post("/alerts", status_code=201)
+    def create_alert(payload: dict) -> dict:
+        """Open a DRAFT prototype alert for a real incident."""
+        incident_id = payload.get("incident_id") if isinstance(payload, dict) else None
+        if not incident_id:
+            raise HTTPException(status_code=400, detail="incident_id is required")
+        if incidents_mod.get_incident(str(incident_id), path=app.state.db_path) is None:
+            raise HTTPException(status_code=404, detail="incident not found")
+        note = str(payload.get("note", ""))[:2000]
+        alert = alerts_mod.create_alert(str(incident_id), note, path=app.state.db_path)
+        return alerts_mod.validate_out(alert)
+
+    @app.get("/alerts")
+    def list_alerts() -> dict:
+        items = [alerts_mod.validate_out(a)
+                 for a in alerts_mod.list_alerts(path=app.state.db_path)]
+        return {"count": len(items), "alerts": items,
+                "prototype_note": alerts_mod.PROTOTYPE_NOTE}
+
+    @app.post("/alerts/{alert_id}/transition")
+    def transition_alert(alert_id: str, payload: dict) -> dict:
+        to_state = payload.get("to_state") if isinstance(payload, dict) else None
+        try:
+            return alerts_mod.transition(str(alert_id), str(to_state),
+                                         path=app.state.db_path)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+    @app.get("/assistant/tools")
+    def assistant_tools() -> dict:
+        return assistant_mod.catalog()
+
+    @app.post("/assistant/query")
+    def assistant_query(payload: dict) -> dict:
+        if not isinstance(payload, dict) or "tool" not in payload:
+            raise HTTPException(status_code=400,
+                                detail="body must be {tool: <name>, args: {...}}")
+        try:
+            return assistant_mod.dispatch(payload.get("tool"),
+                                          payload.get("args") or {},
+                                          db_path=app.state.db_path)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
 
     return app
 

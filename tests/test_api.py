@@ -115,9 +115,15 @@ def test_system_status_honest(client):
 
 
 def test_incidents_honest_empty(client):
+    # Phase 3: /incidents now returns real deterministic groupings (never
+    # "confirmed wildfires"); the fixture DB has 186 ordered detections.
     body = client.get("/incidents").json()
-    assert body["incidents"] == []
-    assert body["status"] == "NOT_IMPLEMENTED"
+    assert body["status"] in ("OK", "EMPTY")
+    assert isinstance(body["incidents"], list)
+    assert "methodology" in body
+    for inc in body["incidents"]:
+        assert inc["status"] in ("SINGLE_OBSERVATION", "UNVERIFIED_CLUSTER")
+        assert inc["verification"]["status"] == "UNAVAILABLE"
 
 
 def test_system_data_provenance(client):
