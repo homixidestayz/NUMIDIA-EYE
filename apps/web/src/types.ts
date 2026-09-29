@@ -24,9 +24,12 @@ export interface Detection {
   frp: number;
   daynight?: string | null;
   version?: string | null;
+  type?: string | null;
   source: string;
   source_url?: string | null;
   fetched_at: string;
+  wilaya_code?: string | null;
+  wilaya_name?: string | null;
   state: DataState;
   [feature: string]: unknown;
 }
