@@ -2,6 +2,9 @@ name: firms-ingestion
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
   schedule:
     # Every 30 min - production ingestion rhythm for near-real-time VIIRS
     - cron: "*/30 * * * *"
@@ -10,7 +13,39 @@ permissions:
   contents: read
 
 jobs:
+  # Secret-free gate. Runs on every PR and push so a merge can never land
+  # a red suite. The api/ml extras are required: without them the API and
+  # ML test modules fail to import and collection aborts.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: uv sync --extra api --extra ml --extra dev
+
+      - name: Tests (fixture-only, offline)
+        run: uv run pytest -q
+
+      - name: Dataset provenance gate (dataset vs manifest SHA)
+        run: uv run python -m numidia_ml.cli verify-dataset
+        # Both files are committed, so this can be enforced on every PR.
+        # It proves provenance identity only - no model is registered and
+        # no model quality claim is implied.
+
+  # Live ingestion. Gated on verify passing AND on the event actually being
+  # one that is allowed to spend the NASA key. `needs:` alone only orders
+  # jobs - it does not filter events - so without this guard the
+  # pull_request/push triggers would also run this job, injecting
+  # secrets.FIRMS_MAP_KEY into PR-authored code (fork PRs get an empty
+  # secret and would fail the job outright).
   ingest:
+    needs: verify
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,9 +56,6 @@ jobs:
 
       - name: Install
         run: uv sync --extra dev
-
-      - name: Tests (fixture-only, offline)
-        run: uv run pytest -q
 
       - name: Production ingestion run (FIRMS NRT API, server-side key)
         env:
