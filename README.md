@@ -2,8 +2,10 @@
 
 **AI-Powered Wildfire Intelligence for Algeria** — *independent prototype · non-official*.
 
-> REAL FIRMS/VIIRS satellite data → REAL processing → REAL trained AI → REAL output.
-> No fabricated data, no hard-coded AI, no mock presented as live.
+> REAL FIRMS/VIIRS satellite data → REAL processing → REAL output.
+> AI verification is **unavailable** and stays that way until a properly
+> evaluated model is registered. No fabricated probabilities, no hard-coded
+> AI, no mock presented as live.
 
 ## Production architecture (built directly — no demo layer)
 
@@ -30,7 +32,7 @@ fire / non-fire / uncertain → incidents → reports → prototype alerts
 | Application database + freshness | ✅ SQLite; LIVE / HISTORICAL / **STALE** / UNAVAILABLE enforced |
 | API boundary | ✅ detections / status / provenance; AI + incidents explicit `UNAVAILABLE` |
 | Dashboard scaffold (React + TS + maplibre, EN/العربية) | 🚧 written; build unverified here (no Node toolchain in this env) |
-| Trained AI verifier | ⛔ blocked on labels — see `docs/labeling-proposal.md` (decision needed) |
+| Trained AI verifier | ⛔ **none registered** — `/ai` returns `503 AI_UNAVAILABLE`. Labeled data is built and verified (v2, 53,615 rows); what is missing is a *validated model*, not data. See `services/ml/MODELS.md` |
 
 ## Production setup
 

@@ -31,9 +31,11 @@ def verification_status(model_path: str | None = None) -> dict:
             "model": None,
             "message": (
                 "No trained verifier is registered (NUMIDIA_ACTIVE_MODEL is "
-                "unset). Training requires a labeled dataset of confirmed "
-                "fire/non-fire VIIRS events - see docs/labeling-proposal.md. "
-                "Probabilities are intentionally NOT served."
+                "unset). The labeled dataset does exist and has been built and "
+                "verified (data/labels/firms_labels_v2.csv, SHA-pinned against "
+                "manifest_v2.json); what is missing is a properly evaluated "
+                "production model, not data. See services/ml/MODELS.md for the "
+                "registration gate. Probabilities are intentionally NOT served."
             ),
         }
     if not Path(mp).exists():
