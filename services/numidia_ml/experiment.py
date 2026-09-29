@@ -302,9 +302,12 @@ def run_experiment(dataset_path: Path | str, out_dir: Path | str,
         "fit_labels": "fire/non-fire only (uncertain/excluded excluded)",
     }
     (out_dir / "config.json").write_text(json.dumps(config, indent=2))
-    (out_dir / "metrics.json").write_text(json.dumps(record, indent=2, default=str))
+    # Provenance must be attached BEFORE metrics.json is serialised. This
+    # order was reversed, so the bundle carried no dataset_sha256 and the
+    # artifact verifier silently skipped its provenance gate.
     record["config"] = config
     record["out_dir"] = str(out_dir)
+    (out_dir / "metrics.json").write_text(json.dumps(record, indent=2, default=str))
     return record
 
 

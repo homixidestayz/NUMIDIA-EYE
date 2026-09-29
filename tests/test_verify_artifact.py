@@ -70,14 +70,14 @@ def _fit_small(df: pd.DataFrame, out, monkeypatch=None):
     return pipe
 
 
-def _recorded_metrics(df, pipe, thr=0.5) -> dict:
+def _recorded_metrics(df, pipe, thr=0.5, dataset_sha=None) -> dict:
     from numidia_ml.experiment import metrics_at_threshold, ranking_metrics, split_frame
 
     X_test, y_test = split_frame(df, "test")
     proba = np.asarray(pipe.predict_proba(X_test)[:, 1])
     return {"test_once": {**metrics_at_threshold(y_test, proba, thr),
                           **ranking_metrics(y_test, proba)},
-            "config": {}}
+            "config": {} if dataset_sha is None else {"dataset_sha256": dataset_sha}}
 
 
 def test_verify_passes_on_matching_bundle(tmp_path):
@@ -87,10 +87,10 @@ def test_verify_passes_on_matching_bundle(tmp_path):
     art = tmp_path / "pipe.joblib"
     pipe = _fit_small(df, art)
     met = tmp_path / "metrics.json"
-    met.write_text(json.dumps(_recorded_metrics(df, pipe)))
+    met.write_text(json.dumps(_recorded_metrics(df, pipe, dataset_sha=V.sha256_dataset(ds))))
     result = V.verify_artifact(art, ds, met)
     assert result["pass"] is True, result["checks"]
-    assert result["dataset_sha256"] == V.sha256_file(ds)
+    assert result["dataset_sha256"] == V.sha256_dataset(ds)
 
 
 def test_verify_fails_on_tampered_metrics(tmp_path):
@@ -114,3 +114,183 @@ def test_verify_fails_without_artifact_or_dataset(tmp_path):
     df.to_csv(ds, index=False)
     assert V.verify_artifact(tmp_path / "nope.joblib", ds)["pass"] is False
     assert V.verify_artifact(tmp_path / "nope.joblib", tmp_path / "nope.csv")["pass"] is False
+
+
+# --- dataset-SHA provenance gate -------------------------------------------------
+# Regression cover for an inert gate: the SHA check used to be wrapped in
+# `if "dataset_sha256" in ...`, so a bundle without one skipped the check
+# entirely and still reported pass. Absence must now FAIL.
+
+
+def test_verify_fails_when_metrics_bundle_omits_dataset_sha(tmp_path):
+    """The exact regression: no recorded SHA must fail, not silently skip."""
+    df = _frame()
+    ds = tmp_path / "mini.csv"
+    df.to_csv(ds, index=False)
+    art = tmp_path / "pipe.joblib"
+    pipe = _fit_small(df, art)
+    met = tmp_path / "metrics.json"
+    met.write_text(json.dumps(_recorded_metrics(df, pipe, dataset_sha=None)))
+
+    result = V.verify_artifact(art, ds, met)
+    assert result["pass"] is False
+    assert any(c["check"] == "dataset sha recorded in metrics bundle" and not c["ok"]
+               for c in result["checks"])
+
+
+def test_verify_fails_on_dataset_sha_mismatch(tmp_path):
+    df = _frame()
+    ds = tmp_path / "mini.csv"
+    df.to_csv(ds, index=False)
+    art = tmp_path / "pipe.joblib"
+    pipe = _fit_small(df, art)
+    met = tmp_path / "metrics.json"
+    met.write_text(json.dumps(_recorded_metrics(df, pipe, dataset_sha="0" * 64)))
+
+    result = V.verify_artifact(art, ds, met)
+    assert result["pass"] is False
+    assert any(c["check"] == "dataset sha matches recorded sha" and not c["ok"]
+               for c in result["checks"])
+
+
+def test_verify_enforces_manifest_expected_sha(tmp_path):
+    """An out-of-band authority (manifest) overrides a self-consistent bundle."""
+    df = _frame()
+    ds = tmp_path / "mini.csv"
+    df.to_csv(ds, index=False)
+    art = tmp_path / "pipe.joblib"
+    pipe = _fit_small(df, art)
+    met = tmp_path / "metrics.json"
+    real = V.sha256_dataset(ds)
+    met.write_text(json.dumps(_recorded_metrics(df, pipe, dataset_sha=real)))
+
+    # Self-consistent artifact, but the manifest disagrees -> must fail.
+    bad = V.verify_artifact(art, ds, met, expected_sha="1" * 64)
+    assert bad["pass"] is False
+    assert any(c["check"] == "dataset sha matches manifest" and not c["ok"]
+               for c in bad["checks"])
+
+    good = V.verify_artifact(art, ds, met, expected_sha=real)
+    assert good["pass"] is True, good["checks"]
+
+
+def test_sha256_dataset_is_line_ending_independent(tmp_path):
+    """Platform stability: CRLF and LF copies of the same rows hash equally."""
+    crlf = tmp_path / "crlf.csv"
+    lf = tmp_path / "lf.csv"
+    lf.write_bytes(b"a,b\n1,2\n3,4\n")
+    crlf.write_bytes(b"a,b\r\n1,2\r\n3,4\r\n")
+    assert V.sha256_dataset(crlf) == V.sha256_dataset(lf)
+    # ...and deliberately differs from the raw-bytes hash, which is what
+    # made the exp-v1 provenance platform-dependent.
+    assert V.sha256_file(crlf) != V.sha256_file(lf)
+
+
+def test_verify_dataset_passes_against_matching_manifest(tmp_path):
+    ds = tmp_path / "ds.csv"
+    ds.write_bytes(b"a,b\n1,2\n")
+    man = tmp_path / "manifest.json"
+    man.write_text(json.dumps({"dataset_version": "v9",
+                               "dataset_sha256": V.sha256_dataset(ds)}))
+    result = V.verify_dataset(ds, man)
+    assert result["pass"] is True, result["checks"]
+    assert result["dataset_version"] == "v9"
+
+
+def test_verify_dataset_fails_on_tampered_dataset(tmp_path):
+    ds = tmp_path / "ds.csv"
+    ds.write_bytes(b"a,b\n1,2\n")
+    man = tmp_path / "manifest.json"
+    man.write_text(json.dumps({"dataset_version": "v9",
+                               "dataset_sha256": V.sha256_dataset(ds)}))
+    ds.write_bytes(b"a,b\n1,2\n3,4\n")  # one row injected
+    result = V.verify_dataset(ds, man)
+    assert result["pass"] is False
+    assert any(c["check"] == "dataset sha matches manifest" and not c["ok"]
+               for c in result["checks"])
+
+
+def test_verify_dataset_fails_when_manifest_has_no_sha(tmp_path):
+    ds = tmp_path / "ds.csv"
+    ds.write_bytes(b"a,b\n1,2\n")
+    man = tmp_path / "manifest.json"
+    man.write_text(json.dumps({"dataset_version": "v9"}))
+    result = V.verify_dataset(ds, man)
+    assert result["pass"] is False
+    assert any(c["check"] == "manifest records a dataset_sha256" and not c["ok"]
+               for c in result["checks"])
+
+
+def test_committed_dataset_matches_committed_manifest():
+    """The real gate CI runs: committed dataset vs committed manifest."""
+    from numidia_ml.cli import DEFAULT_OUT
+
+    result = V.verify_dataset(DEFAULT_OUT / "firms_labels_v2.csv",
+                              DEFAULT_OUT / "manifest_v2.json")
+    assert result["pass"] is True, result["checks"]
+
+
+# --- fail-closed provenance (R2 bypass) -----------------------------------------
+# verify_artifact(artifact, dataset) with no metrics bundle used to run NO
+# dataset SHA check at all and still returned pass=True. A missing input is
+# unverifiable, not "all checks passed".
+
+def test_verify_refuses_to_pass_without_any_provenance_authority(tmp_path):
+    """The exact R2 bypass: no metrics bundle, no expected_sha."""
+    df = _frame()
+    ds = tmp_path / "mini.csv"
+    df.to_csv(ds, index=False)
+    art = tmp_path / "pipe.joblib"
+    _fit_small(df, art)
+
+    result = V.verify_artifact(art, ds)  # metrics_path omitted entirely
+    assert result["pass"] is False, result["checks"]
+    assert not any(c["check"] == "dataset sha matches recorded sha" and c["ok"]
+                   for c in result["checks"]), "no bundle means no comparison happened"
+    assert any(c["check"] == "dataset sha verified against an authority" and not c["ok"]
+               for c in result["checks"])
+
+
+def test_verify_fails_when_metrics_path_does_not_exist(tmp_path):
+    """A missing metrics file must not be read as 'all artifact checks passed'."""
+    df = _frame()
+    ds = tmp_path / "mini.csv"
+    df.to_csv(ds, index=False)
+    art = tmp_path / "pipe.joblib"
+    _fit_small(df, art)
+
+    result = V.verify_artifact(art, ds, tmp_path / "no-such-metrics.json")
+    assert result["pass"] is False
+    assert any(c["check"] == "metrics.json present" and not c["ok"] for c in result["checks"])
+    assert any(c["check"] == "dataset sha verified against an authority" and not c["ok"]
+               for c in result["checks"])
+
+
+def test_expected_sha_alone_satisfies_the_provenance_gate(tmp_path):
+    """expected_sha is a sufficient authority on its own."""
+    df = _frame()
+    ds = tmp_path / "mini.csv"
+    df.to_csv(ds, index=False)
+    art = tmp_path / "pipe.joblib"
+    _fit_small(df, art)
+
+    result = V.verify_artifact(art, ds, expected_sha=V.sha256_dataset(ds))
+    assert result["pass"] is True, result["checks"]
+    assert any(c["check"] == "dataset sha verified against an authority" and c["ok"]
+               for c in result["checks"])
+
+
+def test_matching_bundle_satisfies_the_provenance_gate(tmp_path):
+    """A bundle carrying the right SHA is also a sufficient authority."""
+    df = _frame()
+    ds = tmp_path / "mini.csv"
+    df.to_csv(ds, index=False)
+    art = tmp_path / "pipe.joblib"
+    pipe = _fit_small(df, art)
+    met = tmp_path / "metrics.json"
+    met.write_text(json.dumps(_recorded_metrics(df, pipe, dataset_sha=V.sha256_dataset(ds))))
+
+    result = V.verify_artifact(art, ds, met)
+    assert result["pass"] is True, result["checks"]
+    assert any(c["check"] == "dataset sha verified against an authority" and c["ok"]
+               for c in result["checks"])

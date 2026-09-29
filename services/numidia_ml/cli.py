@@ -360,13 +360,15 @@ def _daterange_str(df: pd.DataFrame, label: str) -> str:
 
 def cmd_experiment(args: argparse.Namespace) -> int:
     from numidia_ml import experiment as E
-    from numidia_ml import ground_truth as gt
+    from numidia_ml import verify_artifact as V
 
     ds = Path(args.dataset)
     if not ds.exists():
         print(f"[ERROR] dataset not found: {ds}", flush=True)
         return 2
-    sha = gt.sha256_file(ds)
+    # Canonical (LF) digest so the recorded provenance is comparable with
+    # manifest_v2.json's dataset_sha256 on any platform.
+    sha = V.sha256_dataset(ds)
     record = E.run_experiment(ds, Path(args.out), sha)
     E.write_experiment_report(args.report, record)
     t = record["test_once"]
@@ -391,6 +393,28 @@ def cmd_verify_artifact(args: argparse.Namespace) -> int:
         print("[OK] candidate eligible for review (registration still requires approval).")
         return 0
     print("[ERROR] candidate FAILED verification - do not register.", flush=True)
+    return 2
+
+
+def cmd_verify_dataset(args: argparse.Namespace) -> int:
+    """Check the committed dataset against its manifest SHA (read-only).
+
+    This is the gate that can run in CI: both the dataset and the manifest
+    are committed, so tampering or silent regeneration fails loudly. It
+    proves provenance identity only - never model quality, never registration.
+    """
+    from numidia_ml import verify_artifact as V
+
+    result = V.verify_dataset(args.dataset, args.manifest)
+    print("--- verify-dataset ---", flush=True)
+    for c in result["checks"]:
+        print(f"[{'PASS' if c['ok'] else 'FAIL'}] {c['check']} :: {c['detail']}", flush=True)
+    if result["pass"]:
+        print(f"[OK] dataset matches manifest ({result.get('dataset_version')}). "
+              "Provenance identity only - no model is registered.")
+        return 0
+    print("[ERROR] dataset does NOT match its manifest - do not trust downstream results.",
+          flush=True)
     return 2
 
 
@@ -811,6 +835,12 @@ def main(argv: list[str] | None = None) -> int:
     pv.add_argument("--metrics", default=None, help="metrics.json recorded with the artifact")
     pv.add_argument("--tol", type=float, default=1e-4)
     pv.set_defaults(func=cmd_verify_artifact)
+
+    pd_ = sub.add_parser("verify-dataset",
+                         help="check the dataset against its manifest SHA (read-only)")
+    pd_.add_argument("--dataset", default=str(DEFAULT_OUT / "firms_labels_v2.csv"))
+    pd_.add_argument("--manifest", default=str(DEFAULT_OUT / "manifest_v2.json"))
+    pd_.set_defaults(func=cmd_verify_dataset)
 
     args = parser.parse_args(argv)
     return args.func(args)
