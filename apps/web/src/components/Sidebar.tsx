@@ -2,6 +2,7 @@ import { Brain, ShieldAlert } from "lucide-react";
 import type { Detection, SystemStatus } from "../types";
 import type { Dict } from "../i18n";
 import { fmtDate } from "../api";
+import { describeAi, describeFirms } from "./StatusHeader";
 
 interface Props {
   status: SystemStatus | null;
@@ -41,12 +42,17 @@ export default function Sidebar({
       <div className="meta">
         <div><span>{dict.last_fetch}</span> <b>{lastFetch}</b></div>
         <div>
-          <Brain size={14} /> {dict.ai_status}: <b>{dict.ai_unavailable}</b>
+          <span>{dict.firms}</span> <b>{describeFirms(status, dict)}</b>
+        </div>
+        <div>
+          <span>{dict.db_status}</span> <b>{status?.db ?? dict.status_unknown}</b>
+        </div>
+        <div>
+          <Brain size={14} /> {dict.ai_status}: <b>{describeAi(status, dict)}</b>
         </div>
         <div className="warn">
           <ShieldAlert size={14} /> {dict.alerts_prototype}
         </div>
-        <div className="warn">{dict.incidents}</div>
       </div>
 
       <h2>{dict.list_title}</h2>
