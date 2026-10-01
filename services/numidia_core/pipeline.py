@@ -23,7 +23,13 @@ from .storage import save_audit_snapshot
 
 
 def verification_status(model_path: str | None = None) -> dict:
-    """Honest AI readiness check. Always UNAVAILABLE until a real verifier."""
+    """Honest AI readiness check.
+
+    Reports AVAILABLE only when a registered artifact passes full verification
+    (SHA, schema version, feature contract, provenance). Any failure is reported
+    with its reason and the status stays AI_UNAVAILABLE, so an unverifiable
+    artifact can never look servable.
+    """
     mp = (model_path or ACTIVE_MODEL).strip()
     if not mp:
         return {
@@ -44,14 +50,34 @@ def verification_status(model_path: str | None = None) -> dict:
             "model": mp,
             "message": "Registered model file is missing; refusing to serve.",
         }
-    return {
-        "status": "AI_UNAVAILABLE",
-        "model": mp,
-        "message": (
-            "A model file exists but no evaluated verifier module is wired "
-            "into the pipeline - unevaluated predictions are refused."
-        ),
-    }
+
+    # A real artifact is registered: verify it for real rather than assuming.
+    try:
+        from numidia_ml.inference import available_verifier
+        from numidia_ml.verifier_model import SklearnWildfireVerifier
+
+        v = available_verifier(mp)
+        if not isinstance(v, SklearnWildfireVerifier):
+            return {"status": "AI_UNAVAILABLE", "model": mp,
+                    "message": str(getattr(v, "message", "verification failed"))}
+        st = v.status()
+        return {
+            "status": "available",
+            "model": st["model"],
+            "schema_version": st["schema_version"],
+            "features_schema": st["features_schema"],
+            "threshold": st["threshold"],
+            "non_fire_threshold": st["non_fire_threshold"],
+            "calibrated": st["calibrated"],
+            "dataset_sha256": st["dataset_sha256"],
+            "scope": st["scope"],
+            "message": (
+                "Verified live-v1 structured-data verifier. " + st["scope"]
+            ),
+        }
+    except Exception as exc:  # noqa: BLE001 - status must never 500
+        return {"status": "AI_UNAVAILABLE", "model": mp,
+                "message": f"Registered artifact failed verification: {exc}"}
 
 
 def process_frame(df: pd.DataFrame, db_path: Path | str | None = None) -> dict:

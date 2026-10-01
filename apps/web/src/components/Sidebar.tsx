@@ -3,6 +3,7 @@ import type { Detection, SystemStatus } from "../types";
 import type { Dict } from "../i18n";
 import { fmtDate } from "../api";
 import { describeAi, describeFirms } from "./StatusHeader";
+import AiVerification from "./AiVerification";
 import type { DetailPhase } from "../App";
 
 interface Props {
@@ -152,6 +153,13 @@ export default function Sidebar({
           {detailStale && <div className="row small"><span>{dict.detail_unavailable}</span></div>}
           <div className="popup-id">{detail.detection_id}</div>
         </div>
+      )}
+      {/* The AI panel is deliberately OUTSIDE .detail-card: that card renders only
+          the detection record as returned by GET /detections/{id}. Verification is a
+          separate, explicitly-triggered model call and must not be mistaken for a
+          field of the detection. */}
+      {detail && detailPhase === "ready" && (
+        <AiVerification detectionId={detail.detection_id} dict={dict} />
       )}
       <ul className="det-list">
         {detections.slice(0, 40).map((d) => (

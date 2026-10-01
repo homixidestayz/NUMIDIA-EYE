@@ -371,10 +371,23 @@ def _column_value(frame, name: str, fallback_row: dict) -> Any:
         series = frame[name]
         if len(series):
             value = series.iloc[0]
-            if not (isinstance(value, float) and value != value):  # NaN
+            # NaN (incl. pandas NA / None) must fall back, not poison the vector.
+            try:
+                if value is None or (isinstance(value, float) and value != value):
+                    return fallback_row.get(name)
+            except TypeError:
+                return fallback_row.get(name)
+            if value is getattr(pd_module(), "NA", object()):
                 return fallback_row.get(name)
             return value
     return fallback_row.get(name)
+
+
+def pd_module():
+    """Lazy pandas accessor so this module keeps no import-time pandas dependency."""
+    import pandas as pd
+
+    return pd
 
 
 # --------------------------------------------------------------------------- verifier
@@ -422,13 +435,34 @@ def load_verifier(*, model_path: str | None = None,
                   message: str | None = None) -> WildfireVerifier:
     """Return the verifier for the serving path.
 
-    Always returns an `UnavailableVerifier` today. `model_path` is accepted for
-    signature compatibility with a future registry and is deliberately ignored:
-    pointing `NUMIDIA_ACTIVE_MODEL` at a file must not by itself enable serving,
-    which is the behaviour `pipeline.verification_status()` already guarantees.
+    If a verified live-v1 artifact is registered (`NUMIDIA_ACTIVE_MODEL`, or an
+    explicit `model_path`), it is loaded and served. Any verification failure -
+    missing file, SHA mismatch, schema drift, forbidden feature, bad threshold -
+    raises `VerifierUnavailable`, which the API surfaces as 503 AI_UNAVAILABLE.
+    A malformed or unregistered artifact therefore can never degrade into a
+    fabricated probability; the only fallback is the honest `UnavailableVerifier`.
     """
-    del model_path
-    return UnavailableVerifier(message)
+    from numidia_ml.verifier_model import load_verified_verifier
+
+    try:
+        return load_verified_verifier(model_path)
+    except VerifierUnavailable:
+        raise
+    except Exception as exc:  # noqa: BLE001 - never leak an internal error as a score
+        raise VerifierUnavailable(
+            f"registered artifact could not be verified: "
+            f"{type(exc).__name__}: {exc}") from exc
+
+
+def available_verifier(model_path: str | None = None) -> WildfireVerifier:
+    """Like `load_verifier`, but returns `UnavailableVerifier` instead of raising.
+
+    For status/introspection paths that must never 500.
+    """
+    try:
+        return load_verifier(model_path=model_path)
+    except VerifierUnavailable as exc:
+        return UnavailableVerifier(str(exc))
 
 
 def verify_detections(features: Iterable[InferenceFeatures],

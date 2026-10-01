@@ -178,7 +178,18 @@ def test_ai_gate_still_503(tmp_path):
     assert r.json()["probability"] is None
 
 
-def test_existing_shapes_unchanged(tmp_path):
+def test_existing_shapes_unchanged(tmp_path, monkeypatch):
+    import numidia_core.config as cfg
+    import numidia_ml.verifier_model as vm
+    from numidia_ml import inference as I
+
+    monkeypatch.setenv("NUMIDIA_ACTIVE_MODEL", "")
+    monkeypatch.setattr(cfg, "ACTIVE_MODEL", "")
+
+    def _none(artifact=None):
+        raise I.VerifierUnavailable("no model registered")
+
+    monkeypatch.setattr(vm, "_resolve", _none)
     c = _client(tmp_path)
     assert c.get("/health").json()["status"] == "ok"
     status = c.get("/system/status").json()

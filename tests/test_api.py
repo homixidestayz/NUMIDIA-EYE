@@ -95,7 +95,23 @@ def test_detection_detail_and_404(client):
     assert client.get("/detections/nope").status_code == 404
 
 
-def test_ai_verifier_honestly_unavailable(client):
+def test_ai_verifier_honestly_unavailable(client, monkeypatch):
+    """With registration withdrawn, /ai must serve nothing at all.
+
+    A verified artifact may be registered in a developer checkout, so this pins
+    the unregistered branch explicitly instead of depending on the environment.
+    """
+    import numidia_core.config as cfg
+    import numidia_ml.verifier_model as vm
+    from numidia_ml import inference as I
+
+    monkeypatch.setenv("NUMIDIA_ACTIVE_MODEL", "")
+    monkeypatch.setattr(cfg, "ACTIVE_MODEL", "")
+
+    def _none(artifact=None):
+        raise I.VerifierUnavailable("no model registered")
+
+    monkeypatch.setattr(vm, "_resolve", _none)
     some_id = client.get("/detections", params={"limit": 1}).json()[0]["detection_id"]
     r = client.get(f"/detections/{some_id}/ai")
     assert r.status_code == 503
@@ -103,9 +119,21 @@ def test_ai_verifier_honestly_unavailable(client):
     assert body["status"] == "AI_UNAVAILABLE"
     assert body["probability"] is None
     assert body["verified"] is None
+    assert body["prediction"] is None
 
 
-def test_system_status_honest(client):
+def test_system_status_honest(client, monkeypatch):
+    import numidia_core.config as cfg
+    import numidia_ml.verifier_model as vm
+    from numidia_ml import inference as I
+
+    monkeypatch.setenv("NUMIDIA_ACTIVE_MODEL", "")
+    monkeypatch.setattr(cfg, "ACTIVE_MODEL", "")
+
+    def _none(artifact=None):
+        raise I.VerifierUnavailable("no model registered")
+
+    monkeypatch.setattr(vm, "_resolve", _none)
     body = client.get("/system/status").json()
     assert body["ai"] == "UNAVAILABLE"
     assert body["db"] == "OK"

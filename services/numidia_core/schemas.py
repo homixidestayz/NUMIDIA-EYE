@@ -45,11 +45,25 @@ class Detection(BaseModel):
 
 
 class AiResult(BaseModel):
+    """AI verification result.
+
+    `probability`, `prediction` and `threshold` are present ONLY when a verified
+    live-v1 artifact served the request; they are never defaulted, fabricated or
+    carried over from a previous call. While no verifier is registered the
+    endpoint answers 503 with status AI_UNAVAILABLE and these stay None.
+    """
+
     status: str = "AI_UNAVAILABLE"
     detection_id: Optional[str] = None
     probability: Optional[float] = None
     verified: Optional[bool] = None
     model: Optional[str] = None
+    prediction: Optional[str] = None          # FIRE | NON_FIRE | UNCERTAIN
+    threshold: Optional[float] = None
+    non_fire_threshold: Optional[float] = None
+    features_schema: Optional[str] = None     # e.g. "live-v1"
+    calibrated: Optional[bool] = None
+    scope: Optional[str] = None
     message: str
 
 

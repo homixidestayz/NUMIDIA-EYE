@@ -14,6 +14,12 @@ import pytest
 from numidia_ml import inference as I
 from numidia_ml.labels import BANNED_FEATURES, MODEL_FEATURES_V1
 
+
+def _no_registered_model(artifact=None):
+    """Stand-in artifact resolver for the 'nothing registered' state."""
+    raise I.VerifierUnavailable(
+        "No verified verifier is registered (NUMIDIA_ACTIVE_MODEL is unset).")
+
 # Verbatim capture of a live production detection (GET /detections/{id}).
 LIVE_DETECTION = {
     "detection_id": "9803f0e3ae7452d4",
@@ -213,24 +219,60 @@ def test_model_contract_drift_is_rejected():
 # --- verifier interface ------------------------------------------------------
 
 def test_verifier_is_unavailable_and_serves_nothing():
-    features = I.build_inference_features(LIVE_DETECTION)
-    verifier = I.load_verifier()
-    assert isinstance(verifier, I.UnavailableVerifier)
+    """With nothing registered, the verifier declines and serves no verdict.
+
+    Registration is withdrawn explicitly so a developer's local
+    NUMIDIA_ACTIVE_MODEL cannot leak into this assertion.
+    """
+    monkey = pytest.MonkeyPatch()
+    monkey.setenv("NUMIDIA_ACTIVE_MODEL", "")
+    import numidia_core.config as cfg
+    monkey.setattr(cfg, "ACTIVE_MODEL", "")
+    try:
+        features = I.build_inference_features(LIVE_DETECTION)
+        with pytest.raises(I.VerifierUnavailable):
+            I.load_verifier()
+        unavailable = I.available_verifier()
+        assert isinstance(unavailable, I.UnavailableVerifier)
+        with pytest.raises(I.VerifierUnavailable):
+            unavailable.verify(features)
+    finally:
+        monkey.undo()
+
+
+def test_load_verifier_ignores_an_unverifiable_model_path():
+    """Pointing at an artifact that cannot be verified must not enable serving.
+
+    This replaced a test that asserted a model path was *always* ignored: a
+    verified live-v1 artifact now loads for real (see tests/test_verifier.py), so
+    the invariant to protect is that unverified or absent artifacts fail closed.
+    """
     with pytest.raises(I.VerifierUnavailable):
-        verifier.verify(features)
+        I.load_verifier(model_path="services/ml/models/exp_v1/hgb_exp-v1.joblib")
+    got = I.available_verifier("services/ml/models/exp_v1/hgb_exp-v1.joblib")
+    assert isinstance(got, I.UnavailableVerifier)
+    assert got.version == "none"
+    assert got.status()["status"] == "AI_UNAVAILABLE"
+    assert got.status()["model"] is None
 
 
-def test_load_verifier_ignores_a_model_path():
-    """Pointing at an artifact must not enable serving by itself."""
-    a = I.load_verifier()
-    b = I.load_verifier(model_path="services/ml/models/exp_v1/hgb_exp-v1.joblib")
-    assert isinstance(b, I.UnavailableVerifier)
-    assert b.version == a.version == "none"
-    assert b.status()["status"] == "AI_UNAVAILABLE"
-    assert b.status()["model"] is None
+def test_unverifiable_model_path_serves_no_verdict():
+    """The fail-closed path must not leak a probability to a caller."""
+    features = I.build_inference_features(LIVE_DETECTION)
+    with pytest.raises(I.VerifierUnavailable):
+        I.verify_detections([features],
+                            model_path="services/ml/models/exp_v1/hgb_exp-v1.joblib")
 
 
-def test_batch_verification_never_returns_partial_results():
+def test_batch_verification_never_returns_partial_results(monkeypatch):
+    """With nothing registered the batch call must raise, not half-serve.
+
+    Registration is withdrawn explicitly so this asserts the unregistered state
+    regardless of the developer's local NUMIDIA_ACTIVE_MODEL.
+    """
+    import numidia_core.config as cfg
+    monkeypatch.setenv("NUMIDIA_ACTIVE_MODEL", "")
+    monkeypatch.setattr(cfg, "ACTIVE_MODEL", "")
     features = [I.build_inference_features(LIVE_DETECTION)]
     with pytest.raises(I.VerifierUnavailable):
         I.verify_detections(features)
@@ -244,20 +286,32 @@ def test_verification_result_rejects_impossible_probabilities():
 
 # --- API fail-closed ---------------------------------------------------------
 
-def test_api_ai_endpoint_stays_503_and_serves_nothing():
+def test_api_ai_endpoint_stays_503_and_serves_nothing(monkeypatch):
+    """Unregistered -> 503 AI_UNAVAILABLE with NO probability, model or verdict.
+
+    Now that a verified artifact may be registered, this pins the *unregistered*
+    branch explicitly rather than relying on the ambient environment.
+    """
     import sqlite3
+    import numidia_core.config as cfg
     from fastapi.testclient import TestClient
-    from numidia_api.app import app
+    from numidia_api.app import build_app
+
+    monkeypatch.setenv("NUMIDIA_ACTIVE_MODEL", "")
+    monkeypatch.setattr(cfg, "ACTIVE_MODEL", "")
+    import numidia_ml.verifier_model as vm
+    monkeypatch.setattr(vm, "_resolve", _no_registered_model)
 
     con = sqlite3.connect("data/db/numidia.db")
     did = con.execute("select detection_id from detections limit 1").fetchone()[0]
-    r = TestClient(app).get(f"/detections/{did}/ai")
+    r = TestClient(build_app()).get(f"/detections/{did}/ai")
     body = r.json()
     assert r.status_code == 503
     assert body["status"] == "AI_UNAVAILABLE"
     assert body["probability"] is None
     assert body["verified"] is None
     assert body["model"] is None
+    assert body["prediction"] is None
 
 
 def test_api_ai_endpoint_404s_for_unknown_detection():
@@ -267,6 +321,31 @@ def test_api_ai_endpoint_404s_for_unknown_detection():
     assert TestClient(app).get("/detections/does-not-exist/ai").status_code == 404
 
 
-def test_no_model_is_registered():
+def test_registered_model_is_verified_before_serving():
+    """Whatever is registered must either verify and serve, or fail closed.
+
+    This replaces an assertion that no model was ever registered. That
+    invariant was true while the verifier was unregistered; Step 11 registered
+    verifier-v2, so the durable property to protect is verification, not absence.
+    """
     from numidia_core.config import ACTIVE_MODEL
-    assert not ACTIVE_MODEL.strip()
+    from numidia_core.pipeline import verification_status
+
+    registered = ACTIVE_MODEL.strip()
+    status = verification_status()
+
+    if not registered:
+        assert status["status"] == "AI_UNAVAILABLE"
+        return
+
+    # Registered: it must verify cleanly, or report an honest failure.
+    if status["status"] == "available":
+        assert status["model"]
+        assert status["schema_version"] == I.INFERENCE_SCHEMA_VERSION
+        assert status["dataset_sha256"]
+        assert 0.0 <= float(status["threshold"]) <= 1.0
+        # and it must actually load
+        verifier = I.load_verifier()
+        assert verifier.version == status["model"]
+    else:
+        assert status["message"], "an unavailable verifier must say why"

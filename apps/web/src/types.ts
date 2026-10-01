@@ -45,12 +45,22 @@ export interface SystemStatus {
   message: string;
 }
 
+export type AiPrediction = "FIRE" | "NON_FIRE" | "UNCERTAIN";
+
 export interface AiResult {
   status: string;
   detection_id?: string | null;
   probability?: number | null;
   verified?: boolean | null;
   model?: string | null;
+  /** Present only when a verified model served the request. */
+  prediction?: AiPrediction | null;
+  threshold?: number | null;
+  non_fire_threshold?: number | null;
+  features_schema?: string | null;
+  calibrated?: boolean | null;
+  /** Experimental-scope statement reported by the backend. */
+  scope?: string | null;
   message: string;
 }
 

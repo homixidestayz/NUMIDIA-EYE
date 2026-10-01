@@ -17,6 +17,7 @@ import subprocess
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -25,6 +26,67 @@ DEFAULT_HISTORY = REPO_ROOT / "data" / "labels" / "firms_history"
 DEFAULT_GT = REPO_ROOT / "data" / "labels" / "ground_truth"
 DEFAULT_OUT = REPO_ROOT / "data" / "labels"
 DEFAULT_REPORT = REPO_ROOT / "docs" / "dataset-report-v1.md"
+
+# Columns every stored history frame must carry.
+HISTORY_REQUIRED_COLUMNS = (
+    "detection_id", "lat", "lon", "acq_datetime", "satellite",
+    "frp", "confidence", "bright_ti4", "bright_ti5", "scan", "track",
+)
+# Raw columns the live-v1 contract is derived from. The f_* derived values are
+# computed at training/inference time (numidia_core.processing.derive_features),
+# so only the raw inputs are validated here. `type` is deliberately excluded.
+HISTORY_LIVE_V1_RAW = (
+    "bright_ti4", "bright_ti5", "frp", "confidence", "scan", "track", "satellite",
+)
+# Reproducible VIIRS Standard Processing products. NRT is replaced after a
+# ~5 month lag, so NRT must never be used for a historical backfill.
+VIIRS_SP_SOURCES = ("VIIRS_SNPP_SP", "VIIRS_NOAA20_SP", "VIIRS_NOAA21_SP")
+
+
+def validate_history_frame(df: pd.DataFrame) -> dict:
+    """Validate one normalized history frame.
+
+    Reports anomalies; never silently drops rows. A frame that fails required
+    columns is reported as such so the caller can refuse to store it.
+    """
+    rep: dict = {"rows": int(len(df)), "missing_columns": [], "null_counts": {},
+                 "all_null_live_v1_columns": [],
+                 "non_finite": {}, "bad_lat": 0, "bad_lon": 0,
+                 "duplicate_ids": 0, "ok": True}
+    for c in HISTORY_REQUIRED_COLUMNS:
+        if c not in df.columns:
+            rep["missing_columns"].append(c)
+    if rep["missing_columns"]:
+        rep["ok"] = False
+        return rep
+    for c in HISTORY_LIVE_V1_RAW:
+        if c not in df.columns:
+            continue
+        n = int(df[c].isna().sum())
+        if n:
+            rep["null_counts"][c] = n
+        if n == len(df) and len(df) > 0:
+            # normalize_raw back-fills absent columns as None, so a payload that
+            # never carried a live-v1 field arrives as an all-null column. The
+            # rows are real detections and are KEPT, but the anomaly is reported
+            # so it can never pass unnoticed.
+            rep["all_null_live_v1_columns"].append(c)
+        if pd.api.types.is_numeric_dtype(df[c]):
+            bad = int((~np.isfinite(df[c].astype("float64"))).sum())
+            if bad:
+                rep["non_finite"][c] = bad
+    lat = pd.to_numeric(df["lat"], errors="coerce")
+    lon = pd.to_numeric(df["lon"], errors="coerce")
+    rep["bad_lat"] = int((lat.isna() | ~lat.between(-90.0, 90.0)).sum())
+    rep["bad_lon"] = int((lon.isna() | ~lon.between(-180.0, 180.0)).sum())
+    rep["duplicate_ids"] = int(df["detection_id"].duplicated().sum())
+    # Fail-closed: a frame is only storable when its schema is complete, its
+    # coordinates are real and finite-safe. Partial nulls are reported, not
+    # rejected (real detections are never silently discarded), but a
+    # non-finite numeric makes the frame unusable for the live-v1 contract.
+    rep["ok"] = not (rep["missing_columns"] or rep["bad_lat"] or rep["bad_lon"]
+                     or rep["non_finite"])
+    return rep
 
 
 def _daterange(start: str, end: str):
@@ -40,7 +102,24 @@ def _daterange(start: str, end: str):
 
 def cmd_pull_history(args: argparse.Namespace) -> int:
     from numidia_core import firms as firms_mod
-    from numidia_core.config import FIRMS_MAP_KEY
+    from numidia_core.config import ALGERIA_BBOX, FIRMS_MAP_KEY
+
+    skip_existing = bool(getattr(args, "skip_existing", False))
+    manifest_name = getattr(args, "manifest_name", None) or "manifest.json"
+
+    # --day-range is validated BEFORE the credential check so an invalid value
+    # is reported the same way whether or not a key is configured.
+    _dr = getattr(args, "day_range", 1)
+    day_range = 1 if _dr is None else int(_dr)
+    if not 1 <= day_range <= 5:
+        print(f"[REFUSED] --day-range must be 1..5 (FIRMS Area API limit), "
+              f"got {day_range}", flush=True)
+        return 2
+    s_date = datetime.strptime(args.start, "%Y-%m-%d").date()
+    e_date = datetime.strptime(args.end, "%Y-%m-%d").date()
+    if e_date < s_date:
+        print("[REFUSED] --end must be >= --start", flush=True)
+        return 2
 
     key = (args.map_key or FIRMS_MAP_KEY).strip()
     if not key:
@@ -49,26 +128,88 @@ def cmd_pull_history(args: argparse.Namespace) -> int:
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     sources = [s.strip() for s in args.sources.split(",") if s.strip()]
-    manifest = {"start": args.start, "end": args.end, "sources": sources,
-                "calls": [], "rows": 0, "failures": 0}
+
+    if getattr(args, "forbid_nrt", False):
+        bad = [s for s in sources if s not in VIIRS_SP_SOURCES]
+        if bad:
+            print(f"[REFUSED] non-SP or non-VIIRS source(s) requested: {bad}. "
+                  "A historical backfill must use reproducible VIIRS Standard "
+                  "Processing products only (NRT is replaced after ~5 months).",
+                  flush=True)
+            return 2
+
+    started = datetime.now(timezone.utc)
+    manifest = {
+        "run_id": getattr(args, "run_id", None) or started.strftime("backfill_%Y%m%dT%H%M%SZ"),
+        "started_at": started.isoformat(),
+        "finished_at": None,
+        "start": args.start,
+        "end": args.end,
+        "sources": sources,
+        "source_type": "FIRMS VIIRS Standard Processing (SP) archive via dated Area API",
+        "geographic_request": dict(ALGERIA_BBOX),
+        "schema": list(firms_mod.CANONICAL_COLUMNS),
+        "live_v1_raw_columns": list(HISTORY_LIVE_V1_RAW),
+        "filename_pattern": "{date}_{source}.parquet",
+        "day_range": day_range,
+        "skip_existing": skip_existing,
+        "files": [], "calls": [], "rows": 0, "failures": 0,
+        "skipped_existing": 0, "rejected_frames": 0,
+        "requests_made": 0, "chunks_fully_skipped": 0,
+        "dates_outside_requested_range": [],
+        "empty_dates": [],
+        "date_coverage": {"dates": [], "min": None, "max": None},
+        "validation_failures": {},
+        "validation_warnings": [],
+    }
     fetched_at = datetime.now(timezone.utc)
-    for day in _daterange(args.start, args.end):
+    seen_dates: set[str] = set()
+    # Reuse "the server genuinely returned nothing" from an earlier run so a
+    # legitimately empty date is not re-requested on every resume.
+    manifest["empty_dates"] = set(manifest["empty_dates"])
+
+    # Walk the range in `day_range`-sized chunks. Each chunk issues one request
+    # per source and may return several acquisition dates; each date becomes its
+    # own deterministic file. Dates outside [start, end] are never archived.
+    chunk_start = s_date
+    while chunk_start <= e_date:
+        chunk_dates = [(chunk_start + timedelta(days=i)).isoformat()
+                       for i in range(day_range)]
+        in_range = [d for d in chunk_dates if args.start <= d <= args.end]
+        # A (date, source) pair counts as satisfied when it was already stored,
+        # OR when a previous run recorded it as a real empty server response.
+        satisfied = {(d, src) for d in in_range for src in sources
+                     if (out / f"{d}_{src}.parquet").exists()
+                     or f"{d}|{src}" in manifest["empty_dates"]}
+        if skip_existing and in_range and all(
+                (d, src) in satisfied for d in in_range for src in sources):
+            manifest["chunks_fully_skipped"] += 1
+            chunk_start += timedelta(days=day_range)
+            continue
+
         for src in sources:
-            call = {"date": day, "source": src}
+            if skip_existing and in_range and all(
+                    (d, src) in satisfied for d in in_range):
+                continue
+            call = {"chunk_start": chunk_start.isoformat(), "source": src,
+                    "day_range": day_range}
             try:
                 raw = firms_mod.fetch_nrt_area(map_key=key, sources=[src],
-                                               day=1, date=day)
+                                               day=day_range,
+                                               date=chunk_start.isoformat())
             except Exception as exc:  # noqa: BLE001 - record, continue
                 call["status"] = "error"
                 call["message"] = firms_mod.redact_key_from_text(str(exc), key)[:300]
                 manifest["failures"] += 1
                 manifest["calls"].append(call)
-                print(f"[{day} {src}] ERROR {call['message']}", flush=True)
+                print(f"[{chunk_start} {src}] ERROR {call['message']}", flush=True)
                 continue
+            manifest["requests_made"] += 1
             if raw.empty:
                 call["status"] = "empty"
                 manifest["calls"].append(call)
-                print(f"[{day} {src}] empty", flush=True)
+                for d in in_range:
+                    manifest["empty_dates"].add(f"{d}|{src}")
                 continue
             norm = firms_mod.normalize_raw(
                 raw.drop(columns=["_firms_source", "_firms_url"]),
@@ -76,17 +217,106 @@ def cmd_pull_history(args: argparse.Namespace) -> int:
                 source_url=firms_mod.redact_url(raw["_firms_url"].iloc[0], key),
                 fetched_at=fetched_at)
             norm = firms_mod.validate(norm)
-            dest = out / f"{day}_{src}.parquet"
-            norm.to_parquet(dest, index=False)
+            if norm.empty:
+                call["status"] = "empty-after-validation"
+                manifest["calls"].append(call)
+                continue
+            call["returned_dates"] = sorted(set(norm["acq_date"].astype(str)))
+            # Split the multi-day response back into one file per date so the
+            # archive layout is unchanged from a day_range=1 run.
+            for day, grp in sorted(norm.groupby("acq_date", sort=True)):
+                day = str(day)
+                if day < args.start or day > args.end:
+                    manifest["dates_outside_requested_range"].append(
+                        {"date": day, "source": src, "reason": "outside [start,end]"})
+                    continue
+                dest = out / f"{day}_{src}.parquet"
+                if skip_existing and dest.exists():
+                    manifest["skipped_existing"] += 1
+                    continue
+                report = validate_history_frame(grp)
+                if not report["ok"]:
+                    manifest["rejected_frames"] += 1
+                    manifest["failures"] += 1
+                    manifest["validation_failures"][f"{day}_{src}"] = report
+                    print(f"[{day} {src}] REJECTED validation "
+                          f"missing={report['missing_columns']} "
+                          f"bad_lat={report['bad_lat']} bad_lon={report['bad_lon']} "
+                          f"non_finite={report['non_finite']}", flush=True)
+                    continue
+                grp.to_parquet(dest, index=False)
+                seen_dates.add(day)
+                call.setdefault("written", []).append(
+                    {"file": dest.name, "rows": int(len(grp))})
+                manifest["rows"] += len(grp)
+                if report["all_null_live_v1_columns"] or report["null_counts"] \
+                        or report["non_finite"] or report["duplicate_ids"]:
+                    manifest["validation_warnings"].append({
+                        "date": day, "source": src, "file": dest.name,
+                    "all_null_live_v1_columns": report["all_null_live_v1_columns"],
+                    "null_counts": report["null_counts"],
+                    "non_finite": report["non_finite"],
+                    "duplicate_ids": report["duplicate_ids"]})
+                print(f"[{day} {src}] {len(grp)} rows -> {dest.name}", flush=True)
             call["status"] = "ok"
-            call["rows"] = len(norm)
-            call["file"] = dest.name
-            manifest["rows"] += len(norm)
             manifest["calls"].append(call)
-            print(f"[{day} {src}] {len(norm)} rows -> {dest.name}", flush=True)
-    (out / "manifest.json").write_text(json.dumps(manifest, indent=2, default=str))
+        chunk_start += timedelta(days=day_range)
+
+    manifest["empty_dates"] = sorted(manifest["empty_dates"])
+    manifest["date_coverage"]["dates"] = sorted(seen_dates)
+    if seen_dates:
+        manifest["date_coverage"]["min"] = min(seen_dates)
+        manifest["date_coverage"]["max"] = max(seen_dates)
+    manifest["files"] = [w["file"] for c in manifest["calls"]
+                         for w in c.get("written", [])]
+    manifest["files_written"] = len(manifest["files"])
+    manifest["finished_at"] = datetime.now(timezone.utc).isoformat()
+
+    # Additive merge: a resumed run must not destroy an earlier run's provenance.
+    prev = {}
+    mpath = out / manifest_name
+    if mpath.exists():
+        try:
+            prev = json.loads(mpath.read_text())
+        except Exception:  # noqa: BLE001 - unreadable old manifest is kept as-is
+            prev = {}
+    if prev:
+        # Carry forward dates the earlier run proved empty.
+        manifest["empty_dates"] = sorted(
+            set(manifest["empty_dates"]) | set(prev.get("empty_dates", [])))
+        RUN_SUMMARY_KEYS = (
+            "run_id", "started_at", "finished_at", "start", "end", "sources",
+            "day_range", "skip_existing", "requests_made", "chunks_fully_skipped",
+            "skipped_existing", "rows", "failures", "rejected_frames",
+            "files_written", "date_coverage", "empty_dates",
+            "dates_outside_requested_range")
+        prev_runs = list(prev.get("runs", []))
+        if not prev_runs and prev.get("run_id"):
+            # The manifest on disk was written by a run that predates the
+            # runs[] ledger; record it as run #1 rather than dropping it.
+            prev_runs.append({k: prev.get(k) for k in RUN_SUMMARY_KEYS})
+        prev_runs.append({k: manifest[k] for k in (
+            "run_id", "started_at", "finished_at", "start", "end", "sources",
+            *RUN_SUMMARY_KEYS)})
+        manifest["runs"] = prev_runs
+        manifest["prior_run_summary"] = {
+            "note": "earlier portions of this same acquisition; see .runs[]",
+            "total_files_before_this_run": prev.get("files_written",
+                                                    len(prev.get("files", []))),
+            "total_rows_before_this_run": prev.get("rows"),
+            "prior_acquired_start": prev.get("acquired_start"),
+            "prior_acquired_end": prev.get("acquired_end"),
+            "prior_status": prev.get("status"),
+        }
+        for w in prev.get("files", []):
+            if w not in manifest["files"]:
+                manifest["files"].append(w)
+    (out / manifest_name).write_text(json.dumps(manifest, indent=2, default=str))
     print(f"[OK] {manifest['rows']} history rows, "
-          f"{manifest['failures']} failures (recorded, not hidden)")
+          f"{manifest['requests_made']} requests, "
+          f"{manifest['failures']} failures, "
+          f"{manifest['skipped_existing']} skipped existing, "
+          f"{len(manifest['files'])} files -> {manifest_name}")
     return 0 if manifest["rows"] else 2
 
 
@@ -792,6 +1022,22 @@ def main(argv: list[str] | None = None) -> int:
                          "verified: _NRT serves recent dates only)")
     ph.add_argument("--map-key", default=None)
     ph.add_argument("--out", default=str(DEFAULT_HISTORY))
+    ph.add_argument("--manifest-name", default="manifest.json",
+                    help="manifest filename to write inside --out. Use a NEW name "
+                         "for a new backfill run so an earlier manifest is not "
+                         "silently overwritten or mistaken for the whole archive.")
+    ph.add_argument("--skip-existing", action="store_true",
+                    help="skip a (date, source) whose parquet already exists "
+                         "instead of rewriting it")
+    ph.add_argument("--forbid-nrt", action="store_true",
+                    help="refuse non-VIIRS-SP sources (protects the reproducibility "
+                         "invariant of a historical backfill)")
+    ph.add_argument("--day-range", type=int, default=1,
+                    help="days requested per FIRMS Area API call (1..5). Default 1 "
+                         "preserves the original one-request-per-date behaviour. "
+                         "Values >1 return several acquisition dates per call, which "
+                         "are split back into one {date}_{source}.parquet each.")
+    ph.add_argument("--run-id", default=None)
     ph.set_defaults(func=cmd_pull_history)
 
     pb = sub.add_parser("build", help="assemble labeled dataset + report")

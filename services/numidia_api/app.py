@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Optional
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response
 from pydantic import ValidationError
 
 from numidia_core import db as db_mod
@@ -295,7 +295,10 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
             firms = "STALE"
 
         verify = pipeline_mod.verification_status()
-        ai_state = "READY" if verify["status"] == "READY" else "UNAVAILABLE"
+        # Report whatever verification_status actually determined. This used to
+        # compare against a literal "READY", which no code path ever produced, so
+        # the header showed UNAVAILABLE even with a verified model registered.
+        ai_state = "READY" if verify["status"] == "available" else "UNAVAILABLE"
         last_fetch = None
         if summary["last_ok_at"]:
             last_fetch = datetime.fromisoformat(summary["last_ok_at"])
@@ -321,8 +324,17 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
                        f"(quiet period or aging data); {summary['detections_count']} "
                        f"stored detections served as HISTORICAL.")
 
-        message += (" AI verifier UNAVAILABLE until a labeled, evaluated model "
-                    "exists. Alerts are PROTOTYPE ONLY - not Civil Protection.")
+        # The AI sentence must follow verification_status, not a hardcoded assumption,
+        # otherwise a registered model is still announced as unavailable.
+        if verify["status"] == "available":
+            message += (f" AI verifier {verify['model']} serving experimental "
+                        f"{verify.get('schema_version')} structured-data verdicts "
+                        f"(threshold {verify.get('threshold')}). Alerts are "
+                        f"PROTOTYPE ONLY - not Civil Protection.")
+        else:
+            message += (" AI verifier UNAVAILABLE until a labeled, evaluated "
+                        "model exists. Alerts are PROTOTYPE ONLY - not Civil "
+                        "Protection.")
 
         return SystemStatus(
             firms=firms,
@@ -423,8 +435,8 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
                                    datetime.now(timezone.utc))
 
     @app.get("/detections/{detection_id}/ai", response_model=AiResult,
-             status_code=503)
-    def ai_verify(detection_id: str) -> AiResult:
+             status_code=200)
+    def ai_verify(detection_id: str, response: Response) -> AiResult:
         """AI verification: explicit 503 until a real evaluated model exists.
 
         The live FIRMS detection is pushed through the real inference boundary
@@ -441,23 +453,41 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
             features = ml_inference.build_inference_features(row)
         except ml_inference.InferenceContractError as exc:
             # Fail closed, and say why: the live detection could not satisfy
-            # the inference contract.
-            return AiResult(status=verify["status"], detection_id=detection_id,
+            # the inference contract. 503, never a fabricated verdict.
+            response.status_code = 503
+            return AiResult(status=ml_inference.AI_UNAVAILABLE,
+                            detection_id=detection_id,
                             message=f"{verify['message']} "
                                     f"Live-feature contract not satisfied: {exc}")
 
         try:
-            result = ml_inference.load_verifier().verify(features)
+            verifier = ml_inference.load_verifier()
+            result = verifier.verify(features)
         except ml_inference.VerifierUnavailable as exc:
+            response.status_code = 503
             return AiResult(status=ml_inference.AI_UNAVAILABLE,
                             detection_id=detection_id,
                             message=f"{verify['message']} {exc}")
+        except ml_inference.InferenceContractError as exc:
+            response.status_code = 503
+            return AiResult(status=ml_inference.AI_UNAVAILABLE,
+                            detection_id=detection_id,
+                            message=f"{verify['message']} "
+                                    f"Live-feature contract not satisfied: {exc}")
 
-        # Reached only once an approved verifier exists.
-        return AiResult(status="OK", detection_id=detection_id,
+        # Reached only with a fully verified live-v1 artifact registered. Every
+        # field below is the model's own output: probability comes from
+        # predict_proba, the verdict from the artifact's thresholds.
+        return AiResult(status="available", detection_id=detection_id,
                         probability=result.probability,
-                        verified=result.probability >= 0.5,
+                        verified=result.assessment == "FIRE",
                         model=result.model_version,
+                        prediction=result.assessment,
+                        threshold=result.threshold,
+                        non_fire_threshold=verifier.non_fire_threshold,
+                        features_schema=ml_inference.INFERENCE_SCHEMA_VERSION,
+                        calibrated=getattr(verifier, "calibrated", None),
+                        scope=getattr(verifier, "scope", None),
                         message=result.assessment)
 
     @app.get("/incidents")
