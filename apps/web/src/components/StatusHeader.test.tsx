@@ -78,6 +78,7 @@ function renderSidebar(status: SystemStatus | null, lang: "en" | "ar" = "en") {
       lang={lang}
       dict={t(lang)}
       detail={RECORDED_DETECTION}
+      detailPhase="ready"
       detailStale={false}
       onSelect={() => {}}
       onCloseDetail={() => {}}
