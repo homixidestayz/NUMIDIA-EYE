@@ -29,7 +29,11 @@ THRESHOLD_GRID = [0.3, 0.4, 0.5, 0.6, 0.7]
 
 NUMERIC_FEATURES = ["bright_ti4", "bright_ti5", "f_bt_diff", "frp", "f_frp",
                     "confidence", "f_confidence", "scan", "track"]
-CATEGORICAL_FEATURES = ["satellite", "type"]
+# `type` is deliberately absent: it is on BANNED_FEATURES because it is null in
+# every live NRT detection and in the whole 2026 test cohort. Keeping it here would
+# select a column that MODEL_FEATURES_V1 no longer provides, and would reintroduce
+# exactly the split indicator the contract forbids.
+CATEGORICAL_FEATURES = ["satellite"]
 
 MODEL_CONFIGS = {
     "rf": {"cls": RandomForestClassifier,

@@ -30,6 +30,7 @@ from numidia_intel import alerts as alerts_mod
 from numidia_intel import assistant as assistant_mod
 from numidia_intel import incidents as incidents_mod
 from numidia_intel import reports as reports_mod
+from numidia_ml import inference as ml_inference
 
 ALGERIA_BBOX = {"lon_min": -9.0, "lat_min": 18.0, "lon_max": 12.0, "lat_max": 38.0}
 
@@ -424,13 +425,40 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
     @app.get("/detections/{detection_id}/ai", response_model=AiResult,
              status_code=503)
     def ai_verify(detection_id: str) -> AiResult:
-        """AI verification: explicit 503 until a real evaluated model exists."""
-        if db_mod.get_detection_row(detection_id,
-                                    path=app.state.db_path) is None:
+        """AI verification: explicit 503 until a real evaluated model exists.
+
+        The live FIRMS detection is pushed through the real inference boundary
+        (numidia_ml.inference) before any verdict is considered. No approved
+        model is registered, so the verifier declines and the response is
+        AI_UNAVAILABLE with no probability, verdict or model.
+        """
+        row = db_mod.get_detection_row(detection_id, path=app.state.db_path)
+        if row is None:
             raise HTTPException(status_code=404, detail="detection not found")
         verify = pipeline_mod.verification_status()
-        return AiResult(status=verify["status"], detection_id=detection_id,
-                        message=verify["message"])
+
+        try:
+            features = ml_inference.build_inference_features(row)
+        except ml_inference.InferenceContractError as exc:
+            # Fail closed, and say why: the live detection could not satisfy
+            # the inference contract.
+            return AiResult(status=verify["status"], detection_id=detection_id,
+                            message=f"{verify['message']} "
+                                    f"Live-feature contract not satisfied: {exc}")
+
+        try:
+            result = ml_inference.load_verifier().verify(features)
+        except ml_inference.VerifierUnavailable as exc:
+            return AiResult(status=ml_inference.AI_UNAVAILABLE,
+                            detection_id=detection_id,
+                            message=f"{verify['message']} {exc}")
+
+        # Reached only once an approved verifier exists.
+        return AiResult(status="OK", detection_id=detection_id,
+                        probability=result.probability,
+                        verified=result.probability >= 0.5,
+                        model=result.model_version,
+                        message=result.assessment)
 
     @app.get("/incidents")
     def list_incidents(limit: int = Query(default=100, ge=1, le=1000)) -> dict:

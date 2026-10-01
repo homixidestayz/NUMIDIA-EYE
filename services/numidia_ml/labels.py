@@ -361,12 +361,18 @@ def verify_dataset(labeled: pd.DataFrame, input_ids: set,
 
 # ---- v2 additions: folds, feature contract ---------------------------------
 # Proposed model inputs: thermal/radiometric/sensor-context ONLY.
+#
+# This list is ALSO the live inference contract (see numidia_ml.inference):
+# a feature may appear here only if a live FIRMS NRT detection can supply it.
+# `type` was removed for exactly that reason - it exists in the historical
+# archives but is null in 100% of live NRT detections and in 100% of the 2026
+# test cohort, so it identifies the split and cannot be served.
 MODEL_FEATURES_V1 = [
     "bright_ti4", "bright_ti5", "f_bt_diff",      # band temperatures + contrast
     "frp", "f_frp",                               # fire radiative power
     "confidence", "f_confidence",                 # FIRMS confidence (feature, never label)
     "scan", "track",                              # pixel geometry
-    "satellite", "type",                          # sensor context (one-hot at train time)
+    "satellite",                                  # sensor context (one-hot at fit time)
 ]
 # Banned from model inputs (stratification/grouping/reporting only).
 BANNED_FEATURES = [
@@ -374,6 +380,10 @@ BANNED_FEATURES = [
     "acq_datetime", "acq_date", "acq_time", "fetched_at",
     "detection_id", "source", "source_url",
     "daynight", "f_daynight", "f_hour_utc", "f_month", "f_doy",
+    # Unavailable in live NRT data (null in 100% of production detections)
+    # and null in 100% of the 2026 test cohort: a split/era indicator, not a
+    # physical signal. Must never become an inference feature.
+    "type",
 ]
 NORTH_LAT = 34.0  # stratification band cut (mirrors audit)
 
