@@ -93,7 +93,25 @@ export interface IncidentSummary {
   satellites: string[];
   wilayas: string[];
   verification: { status: string; evaluated: boolean; model: string | null; message: string };
-  priority: Record<string, unknown>;
+  priority: PriorityResult;
+}
+
+/** One weighted input of the rule-based priority engine (real values only). */
+export interface PriorityFactor {
+  name: string;
+  value: number;
+  normalized: number;
+  weight: number;
+  evidence: string;
+}
+
+export interface PriorityResult {
+  level: "LOW" | "MODERATE" | "HIGH" | "CRITICAL";
+  score: number;
+  factors: PriorityFactor[];
+  unavailable_factors: string[];
+  methodology: string;
+  computed_at?: string;
 }
 
 export interface IncidentList {
@@ -102,6 +120,25 @@ export interface IncidentList {
   incidents: IncidentSummary[];
   methodology: Record<string, unknown>;
   note: string;
+}
+
+/** Real incident report assembled from stored data (RESPOND stage). */
+export interface IncidentReport {
+  incident_id: string;
+  generated_at: string;
+  detection_count: number;
+  first_acq: string | null;
+  last_acq: string | null;
+  centroid_lat: number | null;
+  centroid_lon: number | null;
+  max_frp: number;
+  frp_sum: number;
+  satellites: string[];
+  verification: { status: string; evaluated: boolean; model: string | null; message: string };
+  priority: PriorityResult;
+  sources: string[];
+  limitations: string[];
+  provenance: { methodology: string; incident_methodology: string; generator: string };
 }
 
 export type Lang = "en" | "ar";

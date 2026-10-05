@@ -80,6 +80,7 @@ function renderSidebar(status: SystemStatus | null, lang: "en" | "ar" = "en") {
       detail={RECORDED_DETECTION}
       detailPhase="ready"
       detailStale={false}
+      onAiResult={() => {}}
       onSelect={() => {}}
       onCloseDetail={() => {}}
     />

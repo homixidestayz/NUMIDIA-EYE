@@ -1,5 +1,5 @@
 import { Brain, ShieldAlert } from "lucide-react";
-import type { Detection, SystemStatus } from "../types";
+import type { AiResult, Detection, SystemStatus } from "../types";
 import type { Dict } from "../i18n";
 import { fmtDate } from "../api";
 import { describeAi, describeFirms } from "./StatusHeader";
@@ -14,6 +14,8 @@ interface Props {
   detail: Detection | null;
   detailPhase: DetailPhase;
   detailStale: boolean;
+  /** Mirrors the real /ai result upward so the chain rail can reflect VERIFY. */
+  onAiResult: (result: AiResult | null) => void;
   onSelect: (id: string) => void;
   onCloseDetail: () => void;
 }
@@ -26,6 +28,7 @@ export default function Sidebar({
   detail,
   detailPhase,
   detailStale,
+  onAiResult,
   onSelect,
   onCloseDetail,
 }: Props) {
@@ -101,52 +104,39 @@ export default function Sidebar({
               {dict.close}
             </button>
           </div>
-          <div className="row">
-            <span>{dict.detection_state}</span>
+          {/* UNDERSTAND: five labelled groups so a judge reads what/where/when/
+              source/signal at a glance. Every value still comes straight from
+              GET /detections/{id}; a null field shows "Unavailable", never a
+              substituted zero or dash. */}
+          <Field label={dict.what_label} hint={dict.detection_state}>
             <span className={detail.state === "LIVE" ? "live-tag" : ""}>
               {stateLabel(detail.state, dict)}
             </span>
-          </div>
-          <div className="row">
-            <span>{dict.wilaya}</span>
-            <span>{wilayaText}</span>
-          </div>
-          <div className="row small">
-            <span>{dict.latitude}</span>
-            <span>{numberOr(detail.lat, dict)}</span>
-          </div>
-          <div className="row small">
-            <span>{dict.longitude}</span>
-            <span>{numberOr(detail.lon, dict)}</span>
-          </div>
-          <div className="row">
-            <span>{dict.source}</span>
-            <span>{text(detail.source, dict)}</span>
-          </div>
-          <div className="row small">
-            <span>{dict.satellite}</span>
-            <span>{text(detail.satellite, dict)}</span>
-          </div>
-          <div className="row">
-            <span>{dict.frp}</span>
-            <span>{frpText}</span>
-          </div>
-          <div className="row small">
-            <span>{dict.confidence}</span>
-            <span>{confidenceText}</span>
-          </div>
-          <div className="row small">
-            <span>{dict.brightness_ti4}</span>
-            <span>{numberOr(detail.bright_ti4, dict)}</span>
-          </div>
-          <div className="row small">
-            <span>{dict.brightness_ti5}</span>
-            <span>{numberOr(detail.bright_ti5, dict)}</span>
-          </div>
-          <div className="row">
-            <span>{dict.acquired}</span>
-            <span>{fmtDate(detail.acq_datetime)}</span>
-          </div>
+          </Field>
+          <Field label={dict.where_label} hint={dict.wilaya}>
+            {wilayaText}
+            <SubValue label={dict.latitude} value={numberOr(detail.lat, dict)} />
+            <SubValue label={dict.longitude} value={numberOr(detail.lon, dict)} />
+          </Field>
+          <Field label={dict.when_label} hint={dict.acquired}>
+            {fmtDate(detail.acq_datetime)}
+          </Field>
+          <Field label={dict.source_label} hint={dict.source}>
+            {text(detail.source, dict)}
+            <SubValue label={dict.satellite} value={text(detail.satellite, dict)} />
+          </Field>
+          <Field label={dict.signal_label} hint={dict.frp}>
+            {frpText}
+            <SubValue label={dict.confidence} value={confidenceText} />
+            <SubValue
+              label={dict.brightness_ti4}
+              value={numberOr(detail.bright_ti4, dict)}
+            />
+            <SubValue
+              label={dict.brightness_ti5}
+              value={numberOr(detail.bright_ti5, dict)}
+            />
+          </Field>
           <div className="row small">
             <span>{dict.no_ai}</span>
           </div>
@@ -159,7 +149,11 @@ export default function Sidebar({
           separate, explicitly-triggered model call and must not be mistaken for a
           field of the detection. */}
       {detail && detailPhase === "ready" && (
-        <AiVerification detectionId={detail.detection_id} dict={dict} />
+        <AiVerification
+          detectionId={detail.detection_id}
+          dict={dict}
+          onResult={onAiResult}
+        />
       )}
       <ul className="det-list">
         {detections.slice(0, 40).map((d) => (
@@ -192,6 +186,44 @@ export default function Sidebar({
 /** Nullable string field: render the value, or the localized unavailable state. */
 function text(value: string | null | undefined, dict: Dict): string {
   return value == null || value === "" ? dict.field_unavailable : value;
+}
+
+/**
+ * One labelled group of real detection fields. `label` is the UNDERSTAND
+ * question (what / where / when / source / signal); `hint` names the primary
+ * field inside it. Children are the real values.
+ */
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="field">
+      <div className="field-head">
+        <span className="field-label">{label}</span>
+        <span className="field-hint">{hint}</span>
+      </div>
+      <div className="field-body">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * A secondary labelled value inside a Field. The label is its own element so
+ * it stays independently readable and translatable.
+ */
+function SubValue({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="coords">
+      <em>{label}</em>
+      <span>{value}</span>
+    </span>
+  );
 }
 
 /** Nullable numeric field: 5 decimals, never a fabricated 0. */

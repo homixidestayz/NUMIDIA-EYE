@@ -12,6 +12,8 @@ Computed on demand from the database; no extra ingestion state required.
 from __future__ import annotations
 
 import hashlib
+import math
+from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -27,6 +29,10 @@ from . import verification as verification_mod
 SPATIAL_EPS_DEG = 0.03   # ~3 km chaining radius between consecutive members
 TEMPORAL_GAP_HOURS = 24.0  # max gap between a detection and an open incident
 METHODOLOGY = "incident-v1 (time-ordered greedy chaining, eps=0.03deg, gap=24h)"
+
+# Grid cell size of the incident candidate index. Same scale as the chaining
+# radius, so only a handful of neighbouring cells can hold a match.
+_CELL_DEG = SPATIAL_EPS_DEG
 
 
 def _haversine_deg(lat1: float, lon1: float,
@@ -51,12 +57,44 @@ def _parse_acq(value) -> datetime | None:
     return ts
 
 
+def _cell(lat: float, lon: float) -> tuple[int, int]:
+    """Grid cell of a point, for the incident candidate index."""
+    return (math.floor(lat / _CELL_DEG), math.floor(lon / _CELL_DEG))
+
+
+def _candidate_cells(lat: float, lon: float) -> Iterator[tuple[int, int]]:
+    """Cells that can contain any incident within SPATIAL_EPS_DEG of the point.
+
+    A great-circle distance of at most SPATIAL_EPS_DEG implies
+    |dlat| <= SPATIAL_EPS_DEG and |dlon| <= SPATIAL_EPS_DEG / cos(lat), so
+    scanning that many cells either side of the point's cell is a guaranteed
+    SUPERSET of the matching incidents. A superset is safe: the exact distance
+    and time-gap tests still decide every candidate, so this only prunes work,
+    never results.
+    """
+    ci, cj = _cell(lat, lon)
+    cos_lat = max(math.cos(math.radians(min(abs(lat), 89.0))), 1e-6)
+    span = max(SPATIAL_EPS_DEG, SPATIAL_EPS_DEG / cos_lat)
+    ring = int(math.ceil(span / _CELL_DEG)) + 1
+    for di in range(-ring, ring + 1):
+        for dj in range(-ring, ring + 1):
+            yield (ci + di, cj + dj)
+
+
 def group_detections(rows: list[dict]) -> list[list[dict]]:
     """Chain detections (time-ordered) into incident member lists.
 
     A detection joins the most recently active open incident whose last
     member is within SPATIAL_EPS_DEG and TEMPORAL_GAP_HOURS; otherwise it
     opens a new incident. Rows without usable coordinates/time stand alone.
+
+    Candidate incidents are looked up through a uniform grid index on the last
+    member's position instead of scanning every open incident, which keeps this
+    linear rather than quadratic in the number of detections. The chaining rule
+    itself is unchanged: the winner is still the matching incident with the
+    greatest last acquisition time, ties broken by creation order, and the
+    distance test is the same great-circle comparison. test_intel_grouping.py
+    pins the two implementations to identical output.
     """
     timed = []
     for r in rows:
@@ -69,28 +107,57 @@ def group_detections(rows: list[dict]) -> list[list[dict]]:
     timed.sort(key=lambda t: (t[0] is None, t[0]))
 
     incidents: list[dict] = []  # {members, last_ts, last_lat, last_lon}
+    index: dict[tuple[int, int], set[int]] = {}  # cell -> incident indices
+
+    def reindex(idx: int, lat: float | None, lon: float | None) -> None:
+        """Keep the open incident under the cell of its LAST member position."""
+        for cell, members in index.items():
+            if idx in members:
+                members.discard(idx)
+                if not members:
+                    del index[cell]
+                break
+        if lat is not None and lon is not None:
+            index.setdefault(_cell(lat, lon), set()).add(idx)
+
     for ts, lat, lon, r in timed:
-        best, best_ts = None, None
-        if ts is not None and lat is not None:
-            for inc in incidents:
-                if inc["last_ts"] is None or inc["last_lat"] is None:
-                    continue
-                gap_h = (ts - inc["last_ts"]).total_seconds() / 3600.0
-                if gap_h < 0 or gap_h > TEMPORAL_GAP_HOURS:
-                    continue
-                d = _haversine_deg(
-                    lat, lon,
-                    np.array([inc["last_lat"]]), np.array([inc["last_lon"]]))[0]
-                if d <= SPATIAL_EPS_DEG and (best is None or inc["last_ts"] > best_ts):
-                    best, best_ts = inc, inc["last_ts"]
+        best, best_ts, best_idx = None, None, None
+        if ts is not None and lat is not None and lon is not None:
+            seen: set[int] = set()
+            for cell in _candidate_cells(lat, lon):
+                seen.update(index.get(cell, ()))
+            if seen:
+                # Sorted scan: deterministic, and `idx` is the creation order
+                # used as the tie-break between equal last timestamps.
+                cands = [(i, incidents[i]) for i in sorted(seen)]
+                # Incidents are re-indexed when their last member moves, so
+                # every candidate has usable coordinates and a last timestamp.
+                gaps = [(ts - inc["last_ts"]).total_seconds() / 3600.0
+                        for _, inc in cands]
+                keep = [c for c, g in enumerate(gaps) if 0.0 <= g <= TEMPORAL_GAP_HOURS]
+                if keep:
+                    lats = np.array([cands[c][1]["last_lat"] for c in keep])
+                    lons = np.array([cands[c][1]["last_lon"] for c in keep])
+                    dists = _haversine_deg(lat, lon, lats, lons)
+                    for c, dist in zip(keep, dists):
+                        if dist > SPATIAL_EPS_DEG:
+                            continue
+                        idx, inc = cands[c]
+                        last_ts = inc["last_ts"]
+                        if (best is None or last_ts > best_ts
+                                or (last_ts == best_ts and idx < best_idx)):
+                            best, best_ts, best_idx = inc, last_ts, idx
         if best is None:
             incidents.append({"members": [r], "last_ts": ts,
                               "last_lat": lat, "last_lon": lon})
+            if ts is not None and lat is not None and lon is not None:
+                index.setdefault(_cell(lat, lon), set()).add(len(incidents) - 1)
         else:
             best["members"].append(r)
             best["last_ts"] = ts
             best["last_lat"] = lat
             best["last_lon"] = lon
+            reindex(best_idx, lat, lon)
     return [inc["members"] for inc in incidents]
 
 
@@ -99,8 +166,13 @@ def incident_id_for(member_ids: list[str]) -> str:
     return f"INC-{digest[:12]}"
 
 
-def summarize(members: list[dict]) -> dict:
-    """Build an IncidentSummary-shaped dict from member rows (DB rows)."""
+def summarize(members: list[dict], reason: str | None = None) -> dict:
+    """Build an IncidentSummary-shaped dict from member rows (DB rows).
+
+    `reason` is the already-resolved model verification message; see
+    verification.incident_verification_state for why callers that summarize many
+    groups must resolve it once.
+    """
     ids = [str(m.get("detection_id")) for m in members if m.get("detection_id")]
     inc_id = incident_id_for(ids) if ids else "INC-empty"
     clean_lats, clean_lons = [], []
@@ -121,7 +193,7 @@ def summarize(members: list[dict]) -> dict:
     wilayas = sorted({str(m["wilaya_name"]) for m in members if m.get("wilaya_name")})
     first, last = (times[0], times[-1]) if times else (None, None)
     persist_h = ((last - first).total_seconds() / 3600.0) if first and last else 0.0
-    verification = verification_mod.incident_verification_state(len(members))
+    verification = verification_mod.incident_verification_state(len(members), reason)
     priority = priority_mod.score_incident(
         detection_count=len(members), max_frp=max(frps) if frps else 0.0,
         persistence_hours=persist_h, satellites=sats,
@@ -147,30 +219,34 @@ def summarize(members: list[dict]) -> dict:
 def list_incidents(limit: int = 200, path: Path | str | None = None) -> list[dict]:
     """Group stored detections into incident summaries (newest first)."""
     rows = db_mod.load_detection_rows(limit=5000, path=path)
+    # Resolved once for every group: the message is the same for all of them,
+    # but resolving it loads and hashes the model artifact each time.
+    reason = verification_mod.unavailability_reason()
     groups = group_detections(rows)
-    summaries = [summarize(g) for g in groups if g]
+    summaries = [summarize(g, reason) for g in groups if g]
     summaries.sort(key=lambda s: (s["last_acq"] is None, s["last_acq"]), reverse=True)
     return summaries[:limit]
 
 
 def get_incident(incident_id: str, path: Path | str | None = None) -> dict | None:
     """Full incident detail (members + GIS + verification + priority)."""
-    for summary in list_incidents(limit=5000, path=path):
-        if summary["id"] == incident_id:
-            rows = db_mod.load_detection_rows(limit=5000, path=path)
-            member_ids = set()
-            for group in group_detections(rows):
-                if summarize(group)["id"] == incident_id:
-                    member_ids = {str(m.get("detection_id")) for m in group}
-                    break
-            detail = dict(summary)
-            detail["member_ids"] = sorted(member_ids)
-            if summary["centroid_lat"] is not None:
-                detail["gis_context"] = gis_mod.get_context(
-                    summary["centroid_lat"], summary["centroid_lon"]).model_dump()
-            else:
-                detail["gis_context"] = None
-            return detail
+    # One grouping pass over the rows, then the first matching group wins.
+    # Incident ids are derived from member ids, so the id a group produces here
+    # is exactly the one list_incidents would have produced for it.
+    rows = db_mod.load_detection_rows(limit=5000, path=path)
+    reason = verification_mod.unavailability_reason()
+    for group in group_detections(rows):
+        summary = summarize(group, reason)
+        if summary["id"] != incident_id:
+            continue
+        detail = dict(summary)
+        detail["member_ids"] = sorted({str(m.get("detection_id")) for m in group})
+        if summary["centroid_lat"] is not None:
+            detail["gis_context"] = gis_mod.get_context(
+                summary["centroid_lat"], summary["centroid_lon"]).model_dump()
+        else:
+            detail["gis_context"] = None
+        return detail
     return None
 
 

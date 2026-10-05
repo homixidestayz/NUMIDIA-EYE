@@ -33,13 +33,25 @@ def detection_verification_state(detection_id: str) -> dict:
     ).model_dump()
 
 
-def incident_verification_state(member_count: int) -> dict:
-    """Verification state for an incident. Always UNAVAILABLE today."""
-    state = detection_verification_state("")
-    state["message"] = (
-        f"{member_count} detection(s) grouped without validated evidence. "
-        + unavailability_reason()
-    )
+def incident_verification_state(member_count: int, reason: str | None = None) -> dict:
+    """Verification state for an incident. Always UNAVAILABLE today.
+
+    `reason` lets a caller that groups many incidents pass the artifact
+    verification message it already resolved. verification_status() is constant
+    for a fixed artifact but is not cheap (it loads and hashes the model file),
+    so resolving it once per group turns a seconds-long request into an hours-
+    long one. The value produced is identical either way.
+    """
+    state = VerificationState(
+        status="UNAVAILABLE",
+        evaluated=False,
+        model=None,
+        message=(
+            f"{member_count} detection(s) grouped without validated evidence. "
+            + (unavailability_reason() if reason is None else reason)
+        ),
+        evidence=[],
+    ).model_dump()
     return state
 
 

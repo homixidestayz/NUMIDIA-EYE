@@ -21,7 +21,8 @@ def base_limitations(summary: dict) -> list[str]:
     out = [
         "Independent prototype, non-official data product; not Civil Protection output.",
         "Incident members are grouped FIRMS detections, not confirmed wildfires.",
-        "AI verification unavailable: no evaluated verifier model is registered.",
+        "No incident-level AI evidence: priority is rule-based (priority-v1) and "
+        "never consumes model output.",
         "GIS context limited to wilaya polygons; settlement/road/elevation/slope/forest layers unavailable.",
     ]
     if len(summary.get("satellites", [])) < 2:

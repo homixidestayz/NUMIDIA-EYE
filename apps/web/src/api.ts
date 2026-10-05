@@ -1,4 +1,11 @@
-import type { AiResult, Detection, IncidentList, SystemData, SystemStatus } from "./types";
+import type {
+  AiResult,
+  Detection,
+  IncidentList,
+  IncidentReport,
+  SystemData,
+  SystemStatus,
+} from "./types";
 
 const BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
@@ -43,6 +50,11 @@ export const api = {
     get<Detection>(`/detections/${encodeURIComponent(id)}`, signal),
   incidents: (limit = 100, signal?: AbortSignal) =>
     get<IncidentList>(`/incidents?limit=${limit}`, signal),
+  incidentReport: (id: string, signal?: AbortSignal) =>
+    get<IncidentReport>(
+      `/incidents/${encodeURIComponent(id)}/report`,
+      signal,
+    ),
   ai: async (id: string, signal?: AbortSignal): Promise<AiResult> => {
     // AI is served as an explicit 503 with a structured body, so res.ok is
     // deliberately not checked here.

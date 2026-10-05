@@ -67,6 +67,7 @@ function renderSidebar(
       detail={detail}
       detailPhase={detailPhase}
       detailStale={detailStale}
+      onAiResult={() => {}}
       onSelect={() => {}}
       onCloseDetail={() => {}}
     />
