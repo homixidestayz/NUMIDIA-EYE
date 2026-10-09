@@ -31,14 +31,32 @@ data/db/
 services/ml/models/*
 services/ml/artifacts/*
 
+# verifier_v2 is redistributed with full provenance in MODEL_LICENSE.md
+# (founder-authorized 2026-10-09). Uncomment the next line to keep the 48.5 MB
+# artifact out of Git and rely on the rebuild path in docs/SETUP.md instead.
+# services/ml/models/verifier_v2/model.joblib
+!services/ml/models/verifier_v2/
+services/ml/models/verifier_v2/*
+!services/ml/models/verifier_v2/manifest.json
+!services/ml/models/verifier_v2/config.json
+!services/ml/models/verifier_v2/metrics.json
+!services/ml/models/verifier_v2/calibration.csv
+!services/ml/models/verifier_v2/feature_importance.csv
+!services/ml/models/verifier_v2/model.joblib
+
 # Node
 node_modules/
 apps/web/dist/
-apps/web/package-lock.json
 apps/web/tsconfig.tsbuildinfo
+# NOTE: apps/web/package-lock.json is deliberately NOT ignored. The lockfile is
+# how a fresh clone gets identical dependency versions (256 packages, lockfile
+# v3); ignoring it makes `npm ci` impossible and defeats reproducible installs.
 
 # OS / editors
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
+
+# Superpowers scratch (plan briefs, ledger, review packages)
+.superpowers/

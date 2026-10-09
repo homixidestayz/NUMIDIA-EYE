@@ -1,0 +1,2460 @@
+{
+  "model_version": "verifier-v2",
+  "schema_version": "live-v1",
+  "scope": "EXPERIMENTAL structured satellite-data verifier. Trained and evaluated on firms_labels_v2.csv (live-v1 VIIRS features only). NOT a validated Algerian wildfire detector: the labels contain NO independently confirmed southern Algerian wildfire positive, and the negative class is predominantly catalogued gas flare (N1-flare). Do not claim coverage of all Algerian wildfires, national validation, or universal wildfire-vs-flare separation.",
+  "sizes": {
+    "train": 12847,
+    "val": 9199,
+    "test": 20716
+  },
+  "label_counts": {
+    "train": {
+      "fire": 7355,
+      "non_fire": 5492
+    },
+    "val": {
+      "fire": 3767,
+      "non_fire": 5432
+    },
+    "test": {
+      "fire": 10323,
+      "non_fire": 10393
+    }
+  },
+  "model_selection": {
+    "rule": "highest validation F1, tie-break validation PR-AUC",
+    "sweep": {
+      "hgb": {
+        "val": {
+          "n": 9199,
+          "positives": 3767,
+          "negatives": 5432,
+          "single_class": false,
+          "threshold": 0.5,
+          "accuracy": 0.8741167518208501,
+          "precision": 0.8618585298196949,
+          "recall": 0.8247942659941598,
+          "f1": 0.842919153553988,
+          "brier": 0.09437362529725538,
+          "roc_auc": 0.9334780267597886,
+          "pr_auc": 0.9306275274601866,
+          "confusion_matrix": {
+            "tn": 4934,
+            "fp": 498,
+            "fn": 660,
+            "tp": 3107
+          }
+        },
+        "val_calibration": {
+          "ece": 0.038501,
+          "bins": [
+            {
+              "bin": 0,
+              "lo": 0.0,
+              "hi": 0.1,
+              "n": 3621,
+              "mean_pred": 0.0345,
+              "observed_rate": 0.0646
+            },
+            {
+              "bin": 1,
+              "lo": 0.1,
+              "hi": 0.2,
+              "n": 881,
+              "mean_pred": 0.1424,
+              "observed_rate": 0.1294
+            },
+            {
+              "bin": 2,
+              "lo": 0.2,
+              "hi": 0.3,
+              "n": 493,
+              "mean_pred": 0.2474,
+              "observed_rate": 0.2211
+            },
+            {
+              "bin": 3,
+              "lo": 0.3,
+              "hi": 0.4,
+              "n": 326,
+              "mean_pred": 0.3468,
+              "observed_rate": 0.316
+            },
+            {
+              "bin": 4,
+              "lo": 0.4,
+              "hi": 0.5,
+              "n": 273,
+              "mean_pred": 0.4504,
+              "observed_rate": 0.3663
+            },
+            {
+              "bin": 5,
+              "lo": 0.5,
+              "hi": 0.6,
+              "n": 210,
+              "mean_pred": 0.5503,
+              "observed_rate": 0.4524
+            },
+            {
+              "bin": 6,
+              "lo": 0.6,
+              "hi": 0.7,
+              "n": 233,
+              "mean_pred": 0.652,
+              "observed_rate": 0.515
+            },
+            {
+              "bin": 7,
+              "lo": 0.7,
+              "hi": 0.8,
+              "n": 229,
+              "mean_pred": 0.75,
+              "observed_rate": 0.5939
+            },
+            {
+              "bin": 8,
+              "lo": 0.8,
+              "hi": 0.9,
+              "n": 291,
+              "mean_pred": 0.8538,
+              "observed_rate": 0.7079
+            },
+            {
+              "bin": 9,
+              "lo": 0.9,
+              "hi": 1.0,
+              "n": 2642,
+              "mean_pred": 0.9867,
+              "observed_rate": 0.9652
+            }
+          ]
+        }
+      },
+      "rf": {
+        "val": {
+          "n": 9199,
+          "positives": 3767,
+          "negatives": 5432,
+          "single_class": false,
+          "threshold": 0.5,
+          "accuracy": 0.8734645070116317,
+          "precision": 0.8545355488967584,
+          "recall": 0.8327581629944253,
+          "f1": 0.8435063189029309,
+          "brier": 0.09453446963245925,
+          "roc_auc": 0.9327203423029151,
+          "pr_auc": 0.9294518587981956,
+          "confusion_matrix": {
+            "tn": 4898,
+            "fp": 534,
+            "fn": 630,
+            "tp": 3137
+          }
+        },
+        "val_calibration": {
+          "ece": 0.038465,
+          "bins": [
+            {
+              "bin": 0,
+              "lo": 0.0,
+              "hi": 0.1,
+              "n": 2776,
+              "mean_pred": 0.0408,
+              "observed_rate": 0.0522
+            },
+            {
+              "bin": 1,
+              "lo": 0.1,
+              "hi": 0.2,
+              "n": 1099,
+              "mean_pred": 0.1451,
+              "observed_rate": 0.0992
+            },
+            {
+              "bin": 2,
+              "lo": 0.2,
+              "hi": 0.3,
+              "n": 741,
+              "mean_pred": 0.2465,
+              "observed_rate": 0.1889
+            },
+            {
+              "bin": 3,
+              "lo": 0.3,
+              "hi": 0.4,
+              "n": 504,
+              "mean_pred": 0.3473,
+              "observed_rate": 0.2262
+            },
+            {
+              "bin": 4,
+              "lo": 0.4,
+              "hi": 0.5,
+              "n": 408,
+              "mean_pred": 0.4481,
+              "observed_rate": 0.299
+            },
+            {
+              "bin": 5,
+              "lo": 0.5,
+              "hi": 0.6,
+              "n": 355,
+              "mean_pred": 0.5494,
+              "observed_rate": 0.4423
+            },
+            {
+              "bin": 6,
+              "lo": 0.6,
+              "hi": 0.7,
+              "n": 262,
+              "mean_pred": 0.6512,
+              "observed_rate": 0.5229
+            },
+            {
+              "bin": 7,
+              "lo": 0.7,
+              "hi": 0.8,
+              "n": 311,
+              "mean_pred": 0.7504,
+              "observed_rate": 0.6592
+            },
+            {
+              "bin": 8,
+              "lo": 0.8,
+              "hi": 0.9,
+              "n": 356,
+              "mean_pred": 0.8577,
+              "observed_rate": 0.8483
+            },
+            {
+              "bin": 9,
+              "lo": 0.9,
+              "hi": 1.0,
+              "n": 2387,
+              "mean_pred": 0.9802,
+              "observed_rate": 0.9786
+            }
+          ]
+        }
+      },
+      "et": {
+        "val": {
+          "n": 9199,
+          "positives": 3767,
+          "negatives": 5432,
+          "single_class": false,
+          "threshold": 0.5,
+          "accuracy": 0.8715077725839765,
+          "precision": 0.8738790859126411,
+          "recall": 0.8019644279267322,
+          "f1": 0.8363787375415282,
+          "brier": 0.10237947259072472,
+          "roc_auc": 0.9267550677478592,
+          "pr_auc": 0.9249835253939176,
+          "confusion_matrix": {
+            "tn": 4996,
+            "fp": 436,
+            "fn": 746,
+            "tp": 3021
+          }
+        },
+        "val_calibration": {
+          "ece": 0.073269,
+          "bins": [
+            {
+              "bin": 0,
+              "lo": 0.0,
+              "hi": 0.1,
+              "n": 568,
+              "mean_pred": 0.0778,
+              "observed_rate": 0.0335
+            },
+            {
+              "bin": 1,
+              "lo": 0.1,
+              "hi": 0.2,
+              "n": 2206,
+              "mean_pred": 0.1501,
+              "observed_rate": 0.063
+            },
+            {
+              "bin": 2,
+              "lo": 0.2,
+              "hi": 0.3,
+              "n": 1470,
+              "mean_pred": 0.2446,
+              "observed_rate": 0.1204
+            },
+            {
+              "bin": 3,
+              "lo": 0.3,
+              "hi": 0.4,
+              "n": 867,
+              "mean_pred": 0.3453,
+              "observed_rate": 0.2249
+            },
+            {
+              "bin": 4,
+              "lo": 0.4,
+              "hi": 0.5,
+              "n": 631,
+              "mean_pred": 0.4485,
+              "observed_rate": 0.3423
+            },
+            {
+              "bin": 5,
+              "lo": 0.5,
+              "hi": 0.6,
+              "n": 463,
+              "mean_pred": 0.5449,
+              "observed_rate": 0.5335
+            },
+            {
+              "bin": 6,
+              "lo": 0.6,
+              "hi": 0.7,
+              "n": 317,
+              "mean_pred": 0.6526,
+              "observed_rate": 0.6467
+            },
+            {
+              "bin": 7,
+              "lo": 0.7,
+              "hi": 0.8,
+              "n": 320,
+              "mean_pred": 0.7546,
+              "observed_rate": 0.8438
+            },
+            {
+              "bin": 8,
+              "lo": 0.8,
+              "hi": 0.9,
+              "n": 520,
+              "mean_pred": 0.8572,
+              "observed_rate": 0.9038
+            },
+            {
+              "bin": 9,
+              "lo": 0.9,
+              "hi": 1.0,
+              "n": 1837,
+              "mean_pred": 0.9724,
+              "observed_rate": 0.9956
+            }
+          ]
+        }
+      }
+    },
+    "winner": "rf"
+  },
+  "train": {
+    "n": 12847,
+    "positives": 7355,
+    "negatives": 5492,
+    "single_class": false,
+    "threshold": 0.52,
+    "accuracy": 0.9726784463298824,
+    "precision": 0.983167770419426,
+    "recall": 0.9688647178789939,
+    "f1": 0.9759638430459494,
+    "brier": 0.029487917569186485,
+    "roc_auc": 0.9976956779851096,
+    "pr_auc": 0.9982938182389445,
+    "confusion_matrix": {
+      "tn": 5370,
+      "fp": 122,
+      "fn": 229,
+      "tp": 7126
+    }
+  },
+  "val": {
+    "n": 9199,
+    "positives": 3767,
+    "negatives": 5432,
+    "single_class": false,
+    "threshold": 0.52,
+    "accuracy": 0.8754212414392869,
+    "precision": 0.8637246738828753,
+    "recall": 0.8261215821608707,
+    "f1": 0.8445047489823609,
+    "brier": 0.09453446963245925,
+    "roc_auc": 0.9327203423029149,
+    "pr_auc": 0.9294518582627923,
+    "confusion_matrix": {
+      "tn": 4941,
+      "fp": 491,
+      "fn": 655,
+      "tp": 3112
+    },
+    "calibration": {
+      "ece": 0.038465,
+      "bins": [
+        {
+          "bin": 0,
+          "lo": 0.0,
+          "hi": 0.1,
+          "n": 2776,
+          "mean_pred": 0.0408,
+          "observed_rate": 0.0522
+        },
+        {
+          "bin": 1,
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 1099,
+          "mean_pred": 0.1451,
+          "observed_rate": 0.0992
+        },
+        {
+          "bin": 2,
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 741,
+          "mean_pred": 0.2465,
+          "observed_rate": 0.1889
+        },
+        {
+          "bin": 3,
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 504,
+          "mean_pred": 0.3473,
+          "observed_rate": 0.2262
+        },
+        {
+          "bin": 4,
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 408,
+          "mean_pred": 0.4481,
+          "observed_rate": 0.299
+        },
+        {
+          "bin": 5,
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 355,
+          "mean_pred": 0.5494,
+          "observed_rate": 0.4423
+        },
+        {
+          "bin": 6,
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 262,
+          "mean_pred": 0.6512,
+          "observed_rate": 0.5229
+        },
+        {
+          "bin": 7,
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 311,
+          "mean_pred": 0.7504,
+          "observed_rate": 0.6592
+        },
+        {
+          "bin": 8,
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 356,
+          "mean_pred": 0.8577,
+          "observed_rate": 0.8483
+        },
+        {
+          "bin": 9,
+          "lo": 0.9,
+          "hi": 1.0,
+          "n": 2387,
+          "mean_pred": 0.9802,
+          "observed_rate": 0.9786
+        }
+      ]
+    }
+  },
+  "test_once": {
+    "n": 20716,
+    "positives": 10323,
+    "negatives": 10393,
+    "single_class": false,
+    "threshold": 0.52,
+    "accuracy": 0.8770515543541224,
+    "precision": 0.9360699865410498,
+    "recall": 0.8084859052600988,
+    "f1": 0.8676126617807578,
+    "brier": 0.09049375733213072,
+    "roc_auc": 0.9495735450146454,
+    "pr_auc": 0.956812713754942,
+    "confusion_matrix": {
+      "tn": 9823,
+      "fp": 570,
+      "fn": 1977,
+      "tp": 8346
+    },
+    "calibration": {
+      "ece": 0.037039,
+      "bins": [
+        {
+          "bin": 0,
+          "lo": 0.0,
+          "hi": 0.1,
+          "n": 5133,
+          "mean_pred": 0.0415,
+          "observed_rate": 0.0323
+        },
+        {
+          "bin": 1,
+          "lo": 0.1,
+          "hi": 0.2,
+          "n": 2350,
+          "mean_pred": 0.148,
+          "observed_rate": 0.1298
+        },
+        {
+          "bin": 2,
+          "lo": 0.2,
+          "hi": 0.3,
+          "n": 1798,
+          "mean_pred": 0.2489,
+          "observed_rate": 0.2303
+        },
+        {
+          "bin": 3,
+          "lo": 0.3,
+          "hi": 0.4,
+          "n": 1326,
+          "mean_pred": 0.3472,
+          "observed_rate": 0.3567
+        },
+        {
+          "bin": 4,
+          "lo": 0.4,
+          "hi": 0.5,
+          "n": 1022,
+          "mean_pred": 0.4495,
+          "observed_rate": 0.5157
+        },
+        {
+          "bin": 5,
+          "lo": 0.5,
+          "hi": 0.6,
+          "n": 885,
+          "mean_pred": 0.5504,
+          "observed_rate": 0.6712
+        },
+        {
+          "bin": 6,
+          "lo": 0.6,
+          "hi": 0.7,
+          "n": 907,
+          "mean_pred": 0.6504,
+          "observed_rate": 0.8126
+        },
+        {
+          "bin": 7,
+          "lo": 0.7,
+          "hi": 0.8,
+          "n": 1086,
+          "mean_pred": 0.7503,
+          "observed_rate": 0.8987
+        },
+        {
+          "bin": 8,
+          "lo": 0.8,
+          "hi": 0.9,
+          "n": 902,
+          "mean_pred": 0.8498,
+          "observed_rate": 0.929
+        },
+        {
+          "bin": 9,
+          "lo": 0.9,
+          "hi": 1.0,
+          "n": 5307,
+          "mean_pred": 0.9829,
+          "observed_rate": 0.9974
+        }
+      ]
+    }
+  },
+  "test_stratified": {
+    "band_v3": {
+      "north": {
+        "n": 10847,
+        "positives": 10323,
+        "negatives": 524,
+        "single_class": false,
+        "threshold": 0.52,
+        "accuracy": 0.8151562644049046,
+        "precision": 0.9966563171721997,
+        "recall": 0.8084859052600988,
+        "f1": 0.8927635449537359,
+        "brier": 0.1177611271353949,
+        "roc_auc": 0.9574663927655802,
+        "pr_auc": 0.9976620018456259,
+        "confusion_matrix": {
+          "tn": 496,
+          "fp": 28,
+          "fn": 1977,
+          "tp": 8346
+        }
+      },
+      "south": {
+        "n": 9869,
+        "positives": 0,
+        "negatives": 9869,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.9450805552740906,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=9869); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=9869); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=9869); F1 is undefined"
+        },
+        "brier": 0.06052424063783482,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 9327,
+          "fp": 542,
+          "fn": 0,
+          "tp": 0
+        }
+      }
+    },
+    "wilaya_name": {
+      "Adrar": {
+        "n": 52,
+        "positives": 0,
+        "negatives": 52,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 1.0,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=52); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=52); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=52); F1 is undefined"
+        },
+        "brier": 0.026961958600938998,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 52,
+          "fp": 0,
+          "fn": 0,
+          "tp": 0
+        }
+      },
+      "Algiers": {
+        "n": 61,
+        "positives": 0,
+        "negatives": 61,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 1.0,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=61); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=61); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=61); F1 is undefined"
+        },
+        "brier": 0.017836166025391478,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 61,
+          "fp": 0,
+          "fn": 0,
+          "tp": 0
+        }
+      },
+      "Annaba": {
+        "n": 1280,
+        "positives": 1280,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.94140625,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=1280, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=1280, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=1280, negatives=0); F1 is undefined"
+        },
+        "brier": 0.03909763443290308,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 75,
+          "tp": 1205
+        }
+      },
+      "Batna": {
+        "n": 14,
+        "positives": 14,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.5,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=14, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=14, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=14, negatives=0); F1 is undefined"
+        },
+        "brier": 0.380246838739155,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 7,
+          "tp": 7
+        }
+      },
+      "Bejaia": {
+        "n": 605,
+        "positives": 605,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.6710743801652893,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=605, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=605, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=605, negatives=0); F1 is undefined"
+        },
+        "brier": 0.19441649039390557,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 199,
+          "tp": 406
+        }
+      },
+      "Biskra": {
+        "n": 2,
+        "positives": 2,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.5,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=2, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=2, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=2, negatives=0); F1 is undefined"
+        },
+        "brier": 0.29387332587494264,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 1,
+          "tp": 1
+        }
+      },
+      "Bouira": {
+        "n": 131,
+        "positives": 131,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.9618320610687023,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=131, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=131, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=131, negatives=0); F1 is undefined"
+        },
+        "brier": 0.029412186518858633,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 5,
+          "tp": 126
+        }
+      },
+      "Boumerd\u00e8s": {
+        "n": 12,
+        "positives": 12,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.8333333333333334,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=12, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=12, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=12, negatives=0); F1 is undefined"
+        },
+        "brier": 0.11286959128556907,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 2,
+          "tp": 10
+        }
+      },
+      "Constantine": {
+        "n": 21,
+        "positives": 21,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.9523809523809523,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=21, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=21, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=21, negatives=0); F1 is undefined"
+        },
+        "brier": 0.07851751705232864,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 1,
+          "tp": 20
+        }
+      },
+      "El Oued": {
+        "n": 156,
+        "positives": 0,
+        "negatives": 156,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.9615384615384616,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=156); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=156); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=156); F1 is undefined"
+        },
+        "brier": 0.05903965734271231,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 150,
+          "fp": 6,
+          "fn": 0,
+          "tp": 0
+        }
+      },
+      "El Tarf": {
+        "n": 603,
+        "positives": 603,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.7744610281923715,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=603, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=603, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=603, negatives=0); F1 is undefined"
+        },
+        "brier": 0.13315308327634395,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 136,
+          "tp": 467
+        }
+      },
+      "Ghardaia": {
+        "n": 552,
+        "positives": 0,
+        "negatives": 552,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.9547101449275363,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=552); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=552); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=552); F1 is undefined"
+        },
+        "brier": 0.053117858124097854,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 527,
+          "fp": 25,
+          "fn": 0,
+          "tp": 0
+        }
+      },
+      "Guelma": {
+        "n": 374,
+        "positives": 374,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.8689839572192514,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=374, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=374, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=374, negatives=0); F1 is undefined"
+        },
+        "brier": 0.08589851734431217,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 49,
+          "tp": 325
+        }
+      },
+      "Illizi": {
+        "n": 4179,
+        "positives": 0,
+        "negatives": 4179,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.9693706628379996,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=4179); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=4179); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=4179); F1 is undefined"
+        },
+        "brier": 0.041522406226224884,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 4051,
+          "fp": 128,
+          "fn": 0,
+          "tp": 0
+        }
+      },
+      "Jijel": {
+        "n": 5160,
+        "positives": 5160,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.787015503875969,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=5160, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=5160, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=5160, negatives=0); F1 is undefined"
+        },
+        "brier": 0.13599157274946863,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 1099,
+          "tp": 4061
+        }
+      },
+      "Khenchela": {
+        "n": 2,
+        "positives": 2,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 1.0,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=2, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=2, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=2, negatives=0); F1 is undefined"
+        },
+        "brier": 0.0002662156478332032,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 0,
+          "tp": 2
+        }
+      },
+      "Laghouat": {
+        "n": 808,
+        "positives": 0,
+        "negatives": 808,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.9801980198019802,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=808); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=808); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=808); F1 is undefined"
+        },
+        "brier": 0.03996710061727108,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 792,
+          "fp": 16,
+          "fn": 0,
+          "tp": 0
+        }
+      },
+      "M'Sila": {
+        "n": 6,
+        "positives": 6,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 1.0,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=6, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=6, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=6, negatives=0); F1 is undefined"
+        },
+        "brier": 0.0003552696373493663,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 0,
+          "tp": 6
+        }
+      },
+      "Mila": {
+        "n": 258,
+        "positives": 258,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.7984496124031008,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=258, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=258, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=258, negatives=0); F1 is undefined"
+        },
+        "brier": 0.14117592097120912,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 52,
+          "tp": 206
+        }
+      },
+      "Oran": {
+        "n": 186,
+        "positives": 0,
+        "negatives": 186,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.967741935483871,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=186); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=186); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=186); F1 is undefined"
+        },
+        "brier": 0.03760036980736093,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 180,
+          "fp": 6,
+          "fn": 0,
+          "tp": 0
+        }
+      },
+      "Ouargla": {
+        "n": 4122,
+        "positives": 0,
+        "negatives": 4122,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.910965550703542,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=4122); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=4122); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=0, negatives=4122); F1 is undefined"
+        },
+        "brier": 0.08528988642877948,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 3755,
+          "fp": 367,
+          "fn": 0,
+          "tp": 0
+        }
+      },
+      "Oum El Bouaghi": {
+        "n": 65,
+        "positives": 65,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.8307692307692308,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=65, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=65, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=65, negatives=0); F1 is undefined"
+        },
+        "brier": 0.10432255562416846,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 11,
+          "tp": 54
+        }
+      },
+      "Skikda": {
+        "n": 1562,
+        "positives": 1285,
+        "negatives": 277,
+        "single_class": false,
+        "threshold": 0.52,
+        "accuracy": 0.9244558258642765,
+        "precision": 0.9818331957060281,
+        "recall": 0.9252918287937744,
+        "f1": 0.9527243589743589,
+        "brier": 0.05151586077720917,
+        "roc_auc": 0.980904353200635,
+        "pr_auc": 0.9958518587017045,
+        "confusion_matrix": {
+          "tn": 255,
+          "fp": 22,
+          "fn": 96,
+          "tp": 1189
+        }
+      },
+      "Souk Ahras": {
+        "n": 6,
+        "positives": 6,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 1.0,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=6, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=6, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=6, negatives=0); F1 is undefined"
+        },
+        "brier": 0.05312062358902151,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 0,
+          "tp": 6
+        }
+      },
+      "S\u00e9tif": {
+        "n": 210,
+        "positives": 210,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.6428571428571429,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=210, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=210, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=210, negatives=0); F1 is undefined"
+        },
+        "brier": 0.24141093022782983,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 75,
+          "tp": 135
+        }
+      },
+      "Tissemsilt": {
+        "n": 2,
+        "positives": 2,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.0,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=2, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=2, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=2, negatives=0); F1 is undefined"
+        },
+        "brier": 0.5233806995231528,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 2,
+          "tp": 0
+        }
+      },
+      "Tizi Ouzou": {
+        "n": 81,
+        "positives": 81,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.4567901234567901,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=81, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=81, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=81, negatives=0); F1 is undefined"
+        },
+        "brier": 0.33652861436010795,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 44,
+          "tp": 37
+        }
+      },
+      "T\u00e9bessa": {
+        "n": 206,
+        "positives": 206,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.4029126213592233,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=206, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=206, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=206, negatives=0); F1 is undefined"
+        },
+        "brier": 0.3481046598609916,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 123,
+          "tp": 83
+        }
+      }
+    },
+    "satellite": {
+      "N": {
+        "n": 7036,
+        "positives": 3271,
+        "negatives": 3765,
+        "single_class": false,
+        "threshold": 0.52,
+        "accuracy": 0.8868675383740762,
+        "precision": 0.9386742289968096,
+        "recall": 0.8095383674717211,
+        "f1": 0.8693368351936966,
+        "brier": 0.08544231867411531,
+        "roc_auc": 0.9542488356976659,
+        "pr_auc": 0.9560901400755233,
+        "confusion_matrix": {
+          "tn": 3592,
+          "fp": 173,
+          "fn": 623,
+          "tp": 2648
+        }
+      },
+      "N20": {
+        "n": 7480,
+        "positives": 3800,
+        "negatives": 3680,
+        "single_class": false,
+        "threshold": 0.52,
+        "accuracy": 0.8799465240641712,
+        "precision": 0.9440024479804161,
+        "recall": 0.8118421052631579,
+        "f1": 0.8729485002829654,
+        "brier": 0.08615261073443153,
+        "roc_auc": 0.9537678060640733,
+        "pr_auc": 0.962102088644337,
+        "confusion_matrix": {
+          "tn": 3497,
+          "fp": 183,
+          "fn": 715,
+          "tp": 3085
+        }
+      },
+      "N21": {
+        "n": 6200,
+        "positives": 3252,
+        "negatives": 2948,
+        "single_class": false,
+        "threshold": 0.52,
+        "accuracy": 0.8624193548387097,
+        "precision": 0.9243013795542978,
+        "recall": 0.8035055350553506,
+        "f1": 0.8596808685639086,
+        "brier": 0.10146370877545118,
+        "roc_auc": 0.9377727681618744,
+        "pr_auc": 0.9506599848245125,
+        "confusion_matrix": {
+          "tn": 2734,
+          "fp": 214,
+          "fn": 639,
+          "tp": 2613
+        }
+      }
+    },
+    "daynight": {
+      "D": {
+        "n": 5644,
+        "positives": 5644,
+        "negatives": 0,
+        "single_class": true,
+        "threshold": 0.52,
+        "accuracy": 0.9585400425230333,
+        "precision": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=5644, negatives=0); precision is undefined"
+        },
+        "recall": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=5644, negatives=0); recall is undefined"
+        },
+        "f1": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum is single-class (positives=5644, negatives=0); F1 is undefined"
+        },
+        "brier": 0.02809487305274841,
+        "roc_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "pr_auc": {
+          "unavailable": "UNAVAILABLE - insufficient class/group coverage",
+          "reason": "stratum contains only one class"
+        },
+        "confusion_matrix": {
+          "tn": 0,
+          "fp": 0,
+          "fn": 234,
+          "tp": 5410
+        }
+      },
+      "N": {
+        "n": 15072,
+        "positives": 4679,
+        "negatives": 10393,
+        "single_class": false,
+        "threshold": 0.52,
+        "accuracy": 0.8465366242038217,
+        "precision": 0.8374215630347975,
+        "recall": 0.6274845052361616,
+        "f1": 0.7174098961514966,
+        "brier": 0.11386021850999922,
+        "roc_auc": 0.9022142762299095,
+        "pr_auc": 0.8231942982249005,
+        "confusion_matrix": {
+          "tn": 9823,
+          "fp": 570,
+          "fn": 1743,
+          "tp": 2936
+        }
+      }
+    },
+    "cohort": {
+      "2026": {
+        "n": 20716,
+        "positives": 10323,
+        "negatives": 10393,
+        "single_class": false,
+        "threshold": 0.52,
+        "accuracy": 0.8770515543541224,
+        "precision": 0.9360699865410498,
+        "recall": 0.8084859052600988,
+        "f1": 0.8676126617807578,
+        "brier": 0.09049375733213072,
+        "roc_auc": 0.9495735450146454,
+        "pr_auc": 0.956812713754942,
+        "confusion_matrix": {
+          "tn": 9823,
+          "fp": 570,
+          "fn": 1977,
+          "tp": 8346
+        }
+      }
+    }
+  },
+  "test_event_recall": {
+    "n_events": 140,
+    "recall_median": 0.8148,
+    "recall_min": 0.0,
+    "recall_p10": 0.0
+  },
+  "config": {
+    "model_version": "verifier-v2",
+    "schema_version": "live-v1",
+    "model_key": "rf",
+    "model_class": "RandomForestClassifier",
+    "calibrated": false,
+    "calibration_note": "isotonic did not improve validation ECE (0.038465 -> 0.106622); kept uncalibrated",
+    "features": [
+      "bright_ti4",
+      "bright_ti5",
+      "f_bt_diff",
+      "frp",
+      "f_frp",
+      "confidence",
+      "f_confidence",
+      "scan",
+      "track",
+      "satellite"
+    ],
+    "feature_order": [
+      "bright_ti4",
+      "bright_ti5",
+      "f_bt_diff",
+      "frp",
+      "f_frp",
+      "confidence",
+      "f_confidence",
+      "scan",
+      "track",
+      "satellite"
+    ],
+    "banned_features_excluded": [],
+    "threshold": 0.52,
+    "threshold_selection": {
+      "rule": "maximise F1 on validation set",
+      "grid": [
+        0.1,
+        0.9,
+        81
+      ],
+      "chosen": {
+        "threshold": 0.52,
+        "f1": 0.844505,
+        "precision": 0.863725,
+        "recall": 0.826122
+      },
+      "sweep": [
+        {
+          "threshold": 0.1,
+          "f1": 0.710893,
+          "precision": 0.563911,
+          "recall": 0.961508
+        },
+        {
+          "threshold": 0.11,
+          "f1": 0.718965,
+          "precision": 0.575183,
+          "recall": 0.958588
+        },
+        {
+          "threshold": 0.12,
+          "f1": 0.725623,
+          "precision": 0.585041,
+          "recall": 0.955137
+        },
+        {
+          "threshold": 0.13,
+          "f1": 0.732001,
+          "precision": 0.594304,
+          "recall": 0.952748
+        },
+        {
+          "threshold": 0.14,
+          "f1": 0.737852,
+          "precision": 0.603442,
+          "recall": 0.949297
+        },
+        {
+          "threshold": 0.15,
+          "f1": 0.744828,
+          "precision": 0.614165,
+          "recall": 0.946111
+        },
+        {
+          "threshold": 0.16,
+          "f1": 0.751401,
+          "precision": 0.624429,
+          "recall": 0.943191
+        },
+        {
+          "threshold": 0.17,
+          "f1": 0.758717,
+          "precision": 0.635322,
+          "recall": 0.941598
+        },
+        {
+          "threshold": 0.18,
+          "f1": 0.764566,
+          "precision": 0.645692,
+          "recall": 0.937085
+        },
+        {
+          "threshold": 0.19,
+          "f1": 0.768358,
+          "precision": 0.652279,
+          "recall": 0.934696
+        },
+        {
+          "threshold": 0.2,
+          "f1": 0.772852,
+          "precision": 0.659842,
+          "recall": 0.932572
+        },
+        {
+          "threshold": 0.21,
+          "f1": 0.776593,
+          "precision": 0.667494,
+          "recall": 0.928325
+        },
+        {
+          "threshold": 0.22,
+          "f1": 0.781155,
+          "precision": 0.676379,
+          "recall": 0.924343
+        },
+        {
+          "threshold": 0.23,
+          "f1": 0.785222,
+          "precision": 0.683517,
+          "recall": 0.922485
+        },
+        {
+          "threshold": 0.24,
+          "f1": 0.789185,
+          "precision": 0.691938,
+          "recall": 0.918237
+        },
+        {
+          "threshold": 0.25,
+          "f1": 0.794097,
+          "precision": 0.701854,
+          "recall": 0.914255
+        },
+        {
+          "threshold": 0.26,
+          "f1": 0.797954,
+          "precision": 0.709824,
+          "recall": 0.91107
+        },
+        {
+          "threshold": 0.27,
+          "f1": 0.799532,
+          "precision": 0.715273,
+          "recall": 0.906291
+        },
+        {
+          "threshold": 0.28,
+          "f1": 0.803116,
+          "precision": 0.723061,
+          "recall": 0.903106
+        },
+        {
+          "threshold": 0.29,
+          "f1": 0.806091,
+          "precision": 0.73033,
+          "recall": 0.899389
+        },
+        {
+          "threshold": 0.3,
+          "f1": 0.807904,
+          "precision": 0.735981,
+          "recall": 0.895407
+        },
+        {
+          "threshold": 0.31,
+          "f1": 0.811098,
+          "precision": 0.743312,
+          "recall": 0.892487
+        },
+        {
+          "threshold": 0.32,
+          "f1": 0.813728,
+          "precision": 0.749051,
+          "recall": 0.890629
+        },
+        {
+          "threshold": 0.33,
+          "f1": 0.815982,
+          "precision": 0.755943,
+          "recall": 0.886382
+        },
+        {
+          "threshold": 0.34,
+          "f1": 0.818159,
+          "precision": 0.76244,
+          "recall": 0.882665
+        },
+        {
+          "threshold": 0.35,
+          "f1": 0.820322,
+          "precision": 0.769231,
+          "recall": 0.878683
+        },
+        {
+          "threshold": 0.36,
+          "f1": 0.823031,
+          "precision": 0.775664,
+          "recall": 0.87656
+        },
+        {
+          "threshold": 0.37,
+          "f1": 0.825135,
+          "precision": 0.780673,
+          "recall": 0.874967
+        },
+        {
+          "threshold": 0.38,
+          "f1": 0.827134,
+          "precision": 0.787704,
+          "recall": 0.870719
+        },
+        {
+          "threshold": 0.39,
+          "f1": 0.827883,
+          "precision": 0.792142,
+          "recall": 0.867003
+        },
+        {
+          "threshold": 0.4,
+          "f1": 0.830742,
+          "precision": 0.79897,
+          "recall": 0.865145
+        },
+        {
+          "threshold": 0.41,
+          "f1": 0.831838,
+          "precision": 0.804213,
+          "recall": 0.861428
+        },
+        {
+          "threshold": 0.42,
+          "f1": 0.833097,
+          "precision": 0.809619,
+          "recall": 0.857977
+        },
+        {
+          "threshold": 0.43,
+          "f1": 0.834348,
+          "precision": 0.814618,
+          "recall": 0.855057
+        },
+        {
+          "threshold": 0.44,
+          "f1": 0.837827,
+          "precision": 0.822506,
+          "recall": 0.85373
+        },
+        {
+          "threshold": 0.45,
+          "f1": 0.839251,
+          "precision": 0.828505,
+          "recall": 0.850279
+        },
+        {
+          "threshold": 0.46,
+          "f1": 0.840053,
+          "precision": 0.8339,
+          "recall": 0.846297
+        },
+        {
+          "threshold": 0.47,
+          "f1": 0.840011,
+          "precision": 0.839565,
+          "recall": 0.840457
+        },
+        {
+          "threshold": 0.48,
+          "f1": 0.841194,
+          "precision": 0.844343,
+          "recall": 0.838067
+        },
+        {
+          "threshold": 0.49,
+          "f1": 0.841809,
+          "precision": 0.848853,
+          "recall": 0.834882
+        },
+        {
+          "threshold": 0.5,
+          "f1": 0.843506,
+          "precision": 0.854536,
+          "recall": 0.832758
+        },
+        {
+          "threshold": 0.51,
+          "f1": 0.843982,
+          "precision": 0.859186,
+          "recall": 0.829307
+        },
+        {
+          "threshold": 0.52,
+          "f1": 0.844505,
+          "precision": 0.863725,
+          "recall": 0.826122
+        },
+        {
+          "threshold": 0.53,
+          "f1": 0.843153,
+          "precision": 0.867041,
+          "recall": 0.820547
+        },
+        {
+          "threshold": 0.54,
+          "f1": 0.844371,
+          "precision": 0.873227,
+          "recall": 0.817361
+        },
+        {
+          "threshold": 0.55,
+          "f1": 0.844022,
+          "precision": 0.878301,
+          "recall": 0.812317
+        },
+        {
+          "threshold": 0.56,
+          "f1": 0.844044,
+          "precision": 0.882421,
+          "recall": 0.808866
+        },
+        {
+          "threshold": 0.57,
+          "f1": 0.843746,
+          "precision": 0.88655,
+          "recall": 0.804885
+        },
+        {
+          "threshold": 0.58,
+          "f1": 0.842635,
+          "precision": 0.890597,
+          "recall": 0.799575
+        },
+        {
+          "threshold": 0.59,
+          "f1": 0.84249,
+          "precision": 0.894925,
+          "recall": 0.795859
+        },
+        {
+          "threshold": 0.6,
+          "f1": 0.841451,
+          "precision": 0.898673,
+          "recall": 0.79108
+        },
+        {
+          "threshold": 0.61,
+          "f1": 0.840793,
+          "precision": 0.901306,
+          "recall": 0.787895
+        },
+        {
+          "threshold": 0.62,
+          "f1": 0.83938,
+          "precision": 0.904353,
+          "recall": 0.783117
+        },
+        {
+          "threshold": 0.63,
+          "f1": 0.838544,
+          "precision": 0.907041,
+          "recall": 0.779666
+        },
+        {
+          "threshold": 0.64,
+          "f1": 0.839015,
+          "precision": 0.911042,
+          "recall": 0.777542
+        },
+        {
+          "threshold": 0.65,
+          "f1": 0.838673,
+          "precision": 0.913901,
+          "recall": 0.774887
+        },
+        {
+          "threshold": 0.66,
+          "f1": 0.837444,
+          "precision": 0.91693,
+          "recall": 0.77064
+        },
+        {
+          "threshold": 0.67,
+          "f1": 0.836543,
+          "precision": 0.920064,
+          "recall": 0.766923
+        },
+        {
+          "threshold": 0.68,
+          "f1": 0.834327,
+          "precision": 0.92278,
+          "recall": 0.761349
+        },
+        {
+          "threshold": 0.69,
+          "f1": 0.83399,
+          "precision": 0.926671,
+          "recall": 0.758163
+        },
+        {
+          "threshold": 0.7,
+          "f1": 0.833602,
+          "precision": 0.93091,
+          "recall": 0.754712
+        },
+        {
+          "threshold": 0.71,
+          "f1": 0.832499,
+          "precision": 0.934258,
+          "recall": 0.75073
+        },
+        {
+          "threshold": 0.72,
+          "f1": 0.831733,
+          "precision": 0.937708,
+          "recall": 0.747279
+        },
+        {
+          "threshold": 0.73,
+          "f1": 0.827719,
+          "precision": 0.938425,
+          "recall": 0.740377
+        },
+        {
+          "threshold": 0.74,
+          "f1": 0.824795,
+          "precision": 0.942964,
+          "recall": 0.732944
+        },
+        {
+          "threshold": 0.75,
+          "f1": 0.821852,
+          "precision": 0.945442,
+          "recall": 0.726838
+        },
+        {
+          "threshold": 0.76,
+          "f1": 0.81895,
+          "precision": 0.948619,
+          "recall": 0.720467
+        },
+        {
+          "threshold": 0.77,
+          "f1": 0.817892,
+          "precision": 0.953678,
+          "recall": 0.715954
+        },
+        {
+          "threshold": 0.78,
+          "f1": 0.816618,
+          "precision": 0.956847,
+          "recall": 0.712238
+        },
+        {
+          "threshold": 0.79,
+          "f1": 0.814113,
+          "precision": 0.958633,
+          "recall": 0.70746
+        },
+        {
+          "threshold": 0.8,
+          "f1": 0.810445,
+          "precision": 0.961721,
+          "recall": 0.700292
+        },
+        {
+          "threshold": 0.81,
+          "f1": 0.807716,
+          "precision": 0.964615,
+          "recall": 0.694717
+        },
+        {
+          "threshold": 0.82,
+          "f1": 0.805633,
+          "precision": 0.965863,
+          "recall": 0.691001
+        },
+        {
+          "threshold": 0.83,
+          "f1": 0.801616,
+          "precision": 0.966292,
+          "recall": 0.684895
+        },
+        {
+          "threshold": 0.84,
+          "f1": 0.796438,
+          "precision": 0.96773,
+          "recall": 0.676666
+        },
+        {
+          "threshold": 0.85,
+          "f1": 0.794039,
+          "precision": 0.970475,
+          "recall": 0.671887
+        },
+        {
+          "threshold": 0.86,
+          "f1": 0.789216,
+          "precision": 0.971661,
+          "recall": 0.664454
+        },
+        {
+          "threshold": 0.87,
+          "f1": 0.781905,
+          "precision": 0.972365,
+          "recall": 0.653836
+        },
+        {
+          "threshold": 0.88,
+          "f1": 0.774276,
+          "precision": 0.974235,
+          "recall": 0.642421
+        },
+        {
+          "threshold": 0.89,
+          "f1": 0.766876,
+          "precision": 0.97541,
+          "recall": 0.631802
+        },
+        {
+          "threshold": 0.9,
+          "f1": 0.759181,
+          "precision": 0.978634,
+          "recall": 0.620122
+        }
+      ]
+    },
+    "uncertainty_band": {
+      "rule": "candidate margins are quantiles of the validation NON-FIRE score distribution; choose the one whose validation review share is closest to the pre-declared review budget (10%), tie-broken on higher non-fire recall",
+      "review_budget": 0.1,
+      "negative_quantiles_tried": [
+        0.4,
+        0.5,
+        0.6,
+        0.7,
+        0.75,
+        0.8,
+        0.85,
+        0.9
+      ],
+      "candidates": [
+        {
+          "negative_quantile": 0.4,
+          "non_fire_threshold": 0.0713,
+          "non_fire_recall": 0.4,
+          "validation_share_uncertain": 0.3611
+        },
+        {
+          "negative_quantile": 0.5,
+          "non_fire_threshold": 0.1065,
+          "non_fire_recall": 0.5,
+          "validation_share_uncertain": 0.2964
+        },
+        {
+          "negative_quantile": 0.6,
+          "non_fire_threshold": 0.157,
+          "non_fire_recall": 0.6,
+          "validation_share_uncertain": 0.2312
+        },
+        {
+          "negative_quantile": 0.7,
+          "non_fire_threshold": 0.226,
+          "non_fire_recall": 0.6999,
+          "validation_share_uncertain": 0.1634
+        },
+        {
+          "negative_quantile": 0.75,
+          "non_fire_threshold": 0.2702,
+          "non_fire_recall": 0.75,
+          "validation_share_uncertain": 0.1271
+        },
+        {
+          "negative_quantile": 0.8,
+          "non_fire_threshold": 0.3282,
+          "non_fire_recall": 0.7999,
+          "validation_share_uncertain": 0.0899
+        },
+        {
+          "negative_quantile": 0.85,
+          "non_fire_threshold": 0.401,
+          "non_fire_recall": 0.85,
+          "validation_share_uncertain": 0.0511
+        },
+        {
+          "negative_quantile": 0.9,
+          "non_fire_threshold": 0.4955,
+          "non_fire_recall": 0.8999,
+          "validation_share_uncertain": 0.0089
+        }
+      ],
+      "non_fire_threshold": 0.3282,
+      "non_fire_recall": 0.7999,
+      "band_width": 0.1918,
+      "validation_share_uncertain": 0.0899,
+      "band": {
+        "non_fire_at_or_below": 0.3282,
+        "uncertain_strictly_between": [
+          0.3282,
+          0.52
+        ],
+        "fire_at_or_above": 0.52
+      },
+      "interpretation": "operating margin selected on validation data; it is a review-workload decision, not a calibrated probability-of-truth statement"
+    },
+    "random_state": 20260101,
+    "dataset": "data\\labels\\firms_labels_v2.csv",
+    "dataset_sha256": "9c103caa1d81eada55f24fd2cfce888af1cb6c010b0564c71eb5fd2ba7cf64b5",
+    "source_code_sha256": {
+      "verifier_split.py": "c97ff5f5e5cc207f3d224fd4af08575f38f1666dad40a666a1ada661a636f1d1",
+      "verifier_train.py": "8c496c13fae880696446677e55ee3d43b86ddd94d7f4d15649e88923c205c1d2",
+      "verifier_model.py": "6e0a8cfb4e062f1c96fa09c75cec3713d1f48307338f50007b8daebda1625b72",
+      "inference.py": "0b0ea226ccc8470009e825f8dde88e76e2e20fc67dbe3e343669ceb88d826efb",
+      "labels.py": "a38acebcf030d405f920b3dfa9ded2fed1ff7f1a747ab85485cff01ec55c8ba7"
+    },
+    "sklearn_version": "1.9.1",
+    "python_version": "3.12.10",
+    "scope": "EXPERIMENTAL structured satellite-data verifier. Trained and evaluated on firms_labels_v2.csv (live-v1 VIIRS features only). NOT a validated Algerian wildfire detector: the labels contain NO independently confirmed southern Algerian wildfire positive, and the negative class is predominantly catalogued gas flare (N1-flare). Do not claim coverage of all Algerian wildfires, national validation, or universal wildfire-vs-flare separation.",
+    "trained_at": "2026-10-01T18:48:39.711160+00:00",
+    "split": {
+      "strategy": "event-disjoint, feature-duplicate-collapsed, newest-cohort test",
+      "random_state": 20260101,
+      "test_cohort_reserved": 2026,
+      "unit": "event_id",
+      "duplicate_feature_vectors_collapsed": 6,
+      "events": 723,
+      "assignment_clusters": 723,
+      "sizes": {
+        "train": 12847,
+        "val": 9199,
+        "test": 20716
+      },
+      "label_counts": {
+        "train": {
+          "fire": 7355,
+          "non-fire": 5492
+        },
+        "val": {
+          "non-fire": 5432,
+          "fire": 3767
+        },
+        "test": {
+          "non-fire": 10393,
+          "fire": 10323
+        }
+      },
+      "band_counts": {
+        "train": {
+          "north": 7720,
+          "south": 5127
+        },
+        "val": {
+          "south": 5276,
+          "north": 3923
+        },
+        "test": {
+          "north": 10847,
+          "south": 9869
+        }
+      },
+      "cohort_counts": {
+        "train": {
+          "2021": 7795,
+          "2022": 2914,
+          "2023": 2138
+        },
+        "val": {
+          "2021": 4974,
+          "2022": 2115,
+          "2023": 2110
+        },
+        "test": {
+          "2026": 20716
+        }
+      },
+      "events_per_split": {
+        "train": 239,
+        "val": 232,
+        "test": 252
+      },
+      "event_leakage": 0,
+      "duplicate_vector_leakage": 0,
+      "both_classes_everywhere": true,
+      "features_used": [
+        "bright_ti4",
+        "bright_ti5",
+        "f_bt_diff",
+        "frp",
+        "f_frp",
+        "confidence",
+        "f_confidence",
+        "scan",
+        "track",
+        "satellite"
+      ],
+      "source_labels_modified": false
+    },
+    "labels_used": "fire/non-fire only (uncertain and excluded never fitted)"
+  }
+}

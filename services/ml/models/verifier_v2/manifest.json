@@ -1,0 +1,23 @@
+{
+  "model_version": "verifier-v2",
+  "schema_version": "live-v1",
+  "dataset_sha256": "9c103caa1d81eada55f24fd2cfce888af1cb6c010b0564c71eb5fd2ba7cf64b5",
+  "source_code_sha256": {
+    "verifier_split.py": "c97ff5f5e5cc207f3d224fd4af08575f38f1666dad40a666a1ada661a636f1d1",
+    "verifier_train.py": "8c496c13fae880696446677e55ee3d43b86ddd94d7f4d15649e88923c205c1d2",
+    "verifier_model.py": "6e0a8cfb4e062f1c96fa09c75cec3713d1f48307338f50007b8daebda1625b72",
+    "inference.py": "0b0ea226ccc8470009e825f8dde88e76e2e20fc67dbe3e343669ceb88d826efb",
+    "labels.py": "a38acebcf030d405f920b3dfa9ded2fed1ff7f1a747ab85485cff01ec55c8ba7"
+  },
+  "model_file": "model.joblib",
+  "model_sha256": "ec749e7006e7a6bb8945284b7ae50d96903815ddb78c8a49ce92e20f8304ab26",
+  "files": {
+    "calibration.csv": "4919347fb7155e82462e6c7aa0e109425a1666cc4191e95256f12f50aaabc5b3",
+    "config.json": "c462a0dd1a4306bb0dabe50baae7723447373db7ec6cbf02f4ef7fc2e866e72f",
+    "feature_importance.csv": "5fcf15d4d542e7efeae67d82b9ce6d5e41affc8ebe1cb2f20d34cc7272cec3c2",
+    "metrics.json": "7019c0168207d50fa21c6b13f0462765e214228f65493c53fefab4c90bc48738",
+    "model.joblib": "ec749e7006e7a6bb8945284b7ae50d96903815ddb78c8a49ce92e20f8304ab26"
+  },
+  "trained_at": "2026-10-01T18:48:39.711160+00:00",
+  "scope": "EXPERIMENTAL structured satellite-data verifier. Trained and evaluated on firms_labels_v2.csv (live-v1 VIIRS features only). NOT a validated Algerian wildfire detector: the labels contain NO independently confirmed southern Algerian wildfire positive, and the negative class is predominantly catalogued gas flare (N1-flare). Do not claim coverage of all Algerian wildfires, national validation, or universal wildfire-vs-flare separation."
+}

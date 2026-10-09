@@ -52,7 +52,18 @@ use the backend's own polygon lookup for that.
 
 ## Reuse
 
-Application code: MIT. The underlying detection data are other people's — NASA
-FIRMS — and carry their own attribution requirements. The derived layers
-(clusters, priority, reports) are outputs of an experimental prototype and
-should not be treated as authoritative.
+**No project licence has been granted.** This repository ships no `LICENSE` file
+and `pyproject.toml` declares no licence field. Do not assume reuse rights: check
+[`docs/licensing.md`](../../docs/licensing.md) for the per-source terms and the open
+questions, and [`MODEL_LICENSE.md`](../../MODEL_LICENSE.md) for the provenance and
+attribution the model artifact requires.
+
+The underlying detection data are other people's - NASA FIRMS, and for the trained
+verifier, Copernicus EMS/EFFIS and EOG VIIRS Nightfire - each with its own terms and
+attribution requirements, and the EOG position is unresolved. The derived layers
+(clusters, priority, reports) are outputs of an experimental prototype and should not
+be treated as authoritative.
+
+Vendored third-party code: `vendor/maplibre-gl.js` and `vendor/maplibre-gl.css` are
+MapLibre GL JS v4.7.1 under 3-Clause BSD; the licence text is in
+`vendor/LICENSE-maplibre.txt`.

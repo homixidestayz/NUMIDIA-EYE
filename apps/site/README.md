@@ -9,7 +9,15 @@ by a transparent rule engine**, and every one of those steps is auditable.
 
 ## Run it
 
+**If you have just cloned the repository, start with [`docs/SETUP.md`](../../docs/SETUP.md).**
+It covers prerequisites, database initialisation and the credential-free FIRMS
+archive route, none of which this page repeats.
+
 ```bash
+# 0. one-time: populate a database from the public FIRMS archive (no key needed)
+uv run python -m numidia_worker.cli --db data/db/numidia.db fetch --mode archive
+#    note the argument order: --db comes BEFORE the `fetch` subcommand
+
 # 1. backend (from the repo root). Port 8010 by default because 8000 is taken
 #    by another service on this machine; any free port works.
 uv run uvicorn numidia_api.app:app --host 0.0.0.0 --port 8010
