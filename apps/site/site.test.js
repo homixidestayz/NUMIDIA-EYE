@@ -134,6 +134,20 @@ if (fs.existsSync(sitePath)) {
         src.includes("const to = (from + 180) % 360;"));
   checkTrue("wilaya code is derived from shapeISO, never read as .code",
         src.includes("function wilayaCodeFromIso") && src.includes("wilayaCodeAt"));
+  /* Every wilaya named, at every zoom: the old build gated on z >= 4.0 and hid
+     all but the focused wilaya, so a country-wide view named a handful. */
+  checkTrue("labels are not gated behind a zoom threshold",
+        !/const show = z >=\s*[\d.]+/.test(src) && !/z >= 4\.0/.test(src));
+  checkTrue("label culling is importance-ordered, not position-ordered",
+        src.includes("function labelImportance") && src.includes("labelImportance(b.w) - labelImportance(a.w)"));
+  checkTrue("focused wilaya always outranks the rest",
+        src.includes("return 1e9;"));
+  checkTrue("focused wilaya can never be culled",
+        src.includes("(focused && !on)"));
+  checkTrue("an all-names override exists",
+        src.includes("S.forceAllNames"));
+  checkTrue("labels toggles are wired to state",
+        src.includes('act === "names"') && src.includes('act === "allnames"'));
   /* The only legitimate `properties.code` left is the fallback inside the ISO
      parser's call site, which is guarded and immediately normalised. What must
      not exist is a raw read: `.properties.code` used directly as a wilaya

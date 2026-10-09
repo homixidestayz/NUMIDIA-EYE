@@ -125,6 +125,7 @@ const S = {
   detail: null, detailPhase: "idle", ai: null, aiPhase: "idle",
   report: null, reportPhase: "idle", reportErr: null, expanded: null,
   env: null, envPhase: "idle", envId: null, envErr: null,
+  showNames: true, forceAllNames: false, labelsShown: 0,
 };
 let map, popup, selId = null;
 
@@ -817,18 +818,57 @@ function buildWilayaMarkers() {
   syncWilayaLabels();
 }
 
+/* Every wilaya is labelled at every zoom. The previous build hid names below
+   zoom 4.0 and all-but-one while a wilaya was focused, which meant a country-wide
+   view showed a handful of names and the other 65 existed only as outlines.
+
+   69 labels at country zoom will collide - northern Algeria packs ~20 wilayas
+   into a small area - so names are culled greedily by importance rather than by
+   position. Wilayas carrying detections win over empty ones, and the focused one
+   always wins, because those are the ones a reader is looking for. "All names"
+   overrides the cull and draws every label regardless. */
+function labelImportance(w) {
+  if (String(w.code) === String(S.wilaya)) return 1e9;
+  return wilDetections(w.code).length;
+}
+
 function syncWilayaLabels() {
   if (!map || !wilayaMarkers.size) return;
-  const z = map.getZoom();
-  const show = z >= 4.0;
-  for (const w of S.wilayas) {
-    const mk = wilayaMarkers.get(String(w.code));
-    if (!mk) continue;
-    const on = String(w.code) === String(S.wilaya);
-    // While a wilaya is focused only that one is labelled: the map has already
-    // answered the question, and the rest would just be noise behind it.
-    mk.getElement().style.display = !show ? "none" : (S.wilaya && !on) ? "none" : "";
-    mk.getElement().classList.toggle("is-on", on);
+  const focused = S.wilaya;
+
+  const ordered = S.wilayas
+    .map((w) => ({ w, mk: wilayaMarkers.get(String(w.code)) }))
+    .filter((x) => x.mk)
+    .sort((a, b) => labelImportance(b.w) - labelImportance(a.w));
+
+  const placed = [];
+  const boxes = [];
+  for (const { w, mk } of ordered) {
+    const el = mk.getElement();
+    const on = String(w.code) === String(focused);
+    el.classList.toggle("is-on", on);
+    if (!S.showNames || (focused && !on)) { el.style.display = "none"; continue; }
+
+    el.style.display = "";
+    if (S.forceAllNames) continue;
+
+    // Measure after display, then keep the label only if it clears everything
+    // already placed. getBoundingClientRect reflects the live DOM position.
+    const r = el.getBoundingClientRect();
+    if (!r.width) continue;
+    const hit = boxes.some((b) =>
+      r.left < b.right + 2 && r.right > b.left - 2 &&
+      r.top < b.bottom + 1 && r.bottom > b.top - 1);
+    if (hit) { el.style.display = "none"; continue; }
+    boxes.push({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
+    placed.push(w);
+  }
+  S.labelsShown = placed.length;
+  const cnt = document.getElementById("name-count");
+  if (cnt) {
+    cnt.textContent = S.showNames
+      ? (S.forceAllNames ? `${S.wilayas.length} names` : `${placed.length}/${S.wilayas.length} names`)
+      : "";
   }
 }
 
@@ -999,6 +1039,18 @@ document.addEventListener("click", (e) => {
     }
     if (act === "report") return void openReport(btn.dataset.id);
     if (act === "closereport") { S.report = null; S.reportPhase = "idle"; renderReport(); renderChain(); return; }
+    if (act === "names") {
+      S.showNames = !S.showNames;
+      btn.setAttribute("aria-pressed", String(S.showNames));
+      syncAllLabels();
+      return;
+    }
+    if (act === "allnames") {
+      S.forceAllNames = !S.forceAllNames;
+      btn.setAttribute("aria-pressed", String(S.forceAllNames));
+      syncAllLabels();
+      return;
+    }
   }
   const wl = e.target.closest("[data-wil]");
   if (wl) return void focusWilaya(wl.dataset.wil);
