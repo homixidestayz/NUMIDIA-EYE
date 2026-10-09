@@ -60,3 +60,5 @@ Thumbs.db
 
 # Superpowers scratch (plan briefs, ledger, review packages)
 .superpowers/
+# Environmental context cache (regenerable, never committed)
+data/cache/

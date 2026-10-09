@@ -1,0 +1,51 @@
+{
+  "_comment": "Recorded from a LIVE Open-Meteo call on 2026-10-09 for lat=30.37457 lon=7.0109 (Ouargla), requested with wind_speed_unit=ms. Shape copied verbatim from the API response so the parser is tested against the real contract, not an imagined one.",
+  "latitude": 30.37457,
+  "longitude": 7.0109,
+  "generationtime_ms": 0.123046875,
+  "utc_offset_seconds": 0,
+  "timezone": "GMT",
+  "timezone_abbreviation": "GMT",
+  "elevation": 204.0,
+  "current_units": {
+    "time": "iso8601",
+    "interval": "seconds",
+    "temperature_2m": "\u00b0C",
+    "relative_humidity_2m": "%",
+    "wind_speed_10m": "m/s",
+    "wind_direction_10m": "\u00b0",
+    "wind_gusts_10m": "m/s",
+    "precipitation": "mm"
+  },
+  "current": {
+    "time": "2026-10-09T17:15",
+    "interval": 900,
+    "temperature_2m": 31.8,
+    "relative_humidity_2m": 14,
+    "wind_speed_10m": 1.83,
+    "wind_direction_10m": 315,
+    "wind_gusts_10m": 4.5,
+    "precipitation": 0.0
+  },
+  "hourly_units": {
+    "time": "iso8601",
+    "soil_moisture_0_to_1cm": "m\u00b3/m\u00b3",
+    "soil_moisture_3_to_9cm": "m\u00b3/m\u00b3",
+    "soil_moisture_9_to_27cm": "m\u00b3/m\u00b3",
+    "soil_temperature_0_to_7cm": "\u00b0C",
+    "soil_temperature_7_to_28cm": "\u00b0C"
+  },
+  "hourly": {
+    "time": [
+      "2026-10-09T00:00",
+      "2026-10-09T01:00",
+      "2026-10-09T02:00",
+      "2026-10-09T03:00"
+    ],
+    "soil_moisture_0_to_1cm": [0.017, 0.017, 0.016, 0.016],
+    "soil_moisture_3_to_9cm": [0.051, 0.051, 0.05, 0.05],
+    "soil_moisture_9_to_27cm": [0.092, 0.092, 0.091, 0.091],
+    "soil_temperature_0_to_7cm": [25.0, 24.4, 23.8, 23.2],
+    "soil_temperature_7_to_28cm": [29.2, 29.1, 29.0, 28.9]
+  }
+}
