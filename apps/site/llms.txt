@@ -1,0 +1,78 @@
+# NUMIDIA EYE — capability catalog
+
+> Wildfire intelligence for Algeria, served as an open web surface over the
+> NUMIDIA API: live NASA FIRMS VIIRS detections on an interactive wilaya map, a
+> live-v1 structured-data verifier, rule-based incident priority (priority-v1)
+> and incident reports (report-v1).
+
+This file is kept in step with the code. Every capability below is one the
+application actually implements.
+
+## Key facts
+
+- Coverage: detections are clipped to the Algeria bounding box by the backend,
+  not by the front end. The bundled boundary layer carries 48 wilaya polygons.
+- Counting rule: a **detection** is one raw FIRMS thermal pixel. An **incident**
+  is a deterministic spatiotemporal cluster of detections (`incident-v1`,
+  time-ordered greedy chaining, eps 0.03 deg, temporal gap 24 h) and is **not**
+  a confirmed fire. Each detection joins at most one incident, so the incident
+  count is an upper bound on distinct fires and can merge two nearby fires into
+  one cluster. Incident IDs are `INC-<sha1(sorted member ids)[:12]>` and are
+  stable across rebuilds.
+- Wilaya statistics are counted from the detections loaded in the browser, not
+  from a national total, and the page says so.
+- Priority is `priority-v1`: score = 0.40*frp_norm + 0.25*persist_norm +
+  0.20*count_norm + 0.15*sat_agree, caps FRP 100 MW (log), persistence 72 h,
+  count 20; tiers LOW<0.25<=MODERATE<0.5<=HIGH<0.75<=CRITICAL. It is
+  deterministic, rule-based, and **never consumes model output**. Factors with
+  no dataset (settlement proximity, critical infrastructure, terrain
+  accessibility, forest context, visual verification) contribute zero and are
+  listed explicitly.
+- Verification is a real model call: `GET /detections/{id}/ai` runs
+  `predict_proba` on a verified artifact and returns FIRE / NON_FIRE /
+  UNCERTAIN with a probability. When the artifact cannot be verified the API
+  returns 503 with **no probability, no model and no verdict**, and the page
+  then shows the unavailable state rather than substituting a value.
+- Satellite thermal anomalies are not confirmed fires, and an absence of
+  detections is not evidence of no fire.
+- Emergency: Protection Civile **14** (or **1021**). Reference information only.
+  This application is never a dispatch, staffing, availability or response-time
+  service.
+- Language: English only. There is no locale switch.
+
+## Surfaces
+
+- `/` — the application. Focus one wilaya with `?wilaya=<wilaya_code>`.
+- `README.md` — what this is and how to run it.
+- `provenance.md` — every source, its authority and its terms.
+- `index.md` — markdown twin of the page.
+- `data/wilayas.geojson` — display-only wilaya boundaries.
+
+## Backend endpoints consumed
+
+| Endpoint | Use |
+|---|---|
+| `GET /system/status` | FIRMS / verifier / database / data-state chips |
+| `GET /detections?limit=` | map points and counts |
+| `GET /detections/{id}` | authoritative selected-detection record |
+| `GET /detections/{id}/ai` | live-v1 verdict, probability, threshold |
+| `GET /incidents?limit=` | incident clusters and the priority-v1 result |
+| `GET /incidents/{id}/report` | report-v1 document with limitations |
+
+Nothing else. There is no fixture, no generated detection and no fallback data.
+
+## Scope, stated plainly
+
+The verifier is an **experimental structured satellite-data model**, not a
+validated Algerian wildfire detector. Its training labels contain no
+independently confirmed southern Algerian wildfire positive, and the negative
+class is predominantly catalogued gas flare. Test recall is 0.81 (1,977 of
+10,323 fire detections missed). Southern test metrics are recorded as
+UNAVAILABLE for insufficient class coverage rather than as zero. Do not read
+this as national validation, and do not read it as separation of wildfire from
+industrial flare.
+
+## Licence
+
+No site-wide data licence is declared. Application code is MIT. Data terms are
+stated per layer in `provenance.md`; check that file before reuse.
