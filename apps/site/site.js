@@ -101,6 +101,11 @@ const T = {
   vulDry: "Drying", vulMoist: "Moist", vulShallow: "Shallow fuel",
   vulDeep: "Deep fuel", vulStrong: "Strong", vulCalm: "Calm", vulIntense: "Intense",
 
+  chainReady: "stages ready",
+  wilBar: "detections relative to the busiest wilaya",
+  scoreLbl: "score",
+  prioCritical: "critical", prioModerate: "moderate", prioLow: "low",
+
   sourcesNote: "Detections: NASA FIRMS VIIRS via the NUMIDIA API. Map: the project's own wilaya boundaries on a blank style — no external tile server, so no neighbouring country can appear. Verifier: live-v1 structured-data model, served read-only.",
   termsNote: "No site-wide data licence is declared. Code MIT. Data terms are stated per layer above.",
   foot: "Independent research prototype. Not affiliated with or endorsed by any government body.",
@@ -339,10 +344,17 @@ function renderWilaya() {
     </div>`;
   })() : `<p class="note">${esc(T.clickWilaya)}</p><div class="rulebox">${esc(T.counting)}</div>`;
 
+  const maxN = ranked.length ? ranked[0].n : 1;
   const list = ranked.length
-    ? `<ul class="wil-list">${ranked.slice(0, 40).map((r) =>
-        `<li data-wil="${esc(r.w.code)}" class="${String(r.w.code) === String(S.wilaya) ? "on" : ""}">
-          <span class="n">${esc(r.w.name)}</span><span class="v">${r.n}</span></li>`).join("")}</ul>`
+    ? `<ul class="wil-list">${ranked.slice(0, 40).map((r) => {
+        const pct = Math.max(6, Math.round((r.n / maxN) * 100));
+        const on = String(r.w.code) === String(S.wilaya);
+        return `<li data-wil="${esc(r.w.code)}" class="${on ? "on" : ""}">
+          <span class="n">${esc(r.w.name)}</span>
+          <span class="bar"><i style="width:${pct}%"></i></span>
+          <span class="v">${r.n}</span></li>`;
+      }).join("")}</ul>
+      <p class="note small">${esc(T.wilBar)}</p>`
     : `<p class="note">${esc(T.incEmpty)}</p>`;
 
   body.innerHTML = hero + list;
@@ -358,23 +370,42 @@ function renderWilaya() {
 /* ---------------------------------------------------------------- chain */
 function renderChain() {
   const aiServed = S.ai && S.ai.status === "available" && S.ai.probability != null;
+  const total = S.detections.length || 1;
   const stages = [
-    { n: T.det, h: "NASA FIRMS VIIRS", v: shown().length ? `${shown().length} · ${orUn(S.status?.data_state)}` : T.loading, s: shown().length ? "ready" : "idle" },
-    { n: T.aiRes, h: "live-v1 model", v: aiServed ? (S.ai.model || T.aiModel) : (S.detail ? T.loading : "—"), s: aiServed ? "ready" : "idle" },
-    { n: T.what, h: `${T.where} / ${T.when} / ${T.signal}`, v: S.detailPhase === "ready" ? orUn(S.detail.wilaya_name) : "—", s: S.detailPhase === "ready" ? "ready" : "idle" },
-    { n: T.prioTitle, h: "priority-v1", v: S.incPhase === "error" ? T.unavailable : S.incidents.length ? `${S.incidents.length} ${T.incN}` : T.incEmpty, s: S.incPhase === "error" ? "unavail" : S.incidents.length ? "ready" : "idle" },
-    { n: T.reportTitle, h: "report-v1", v: S.reportPhase === "ready" ? T.reportTitle : "—", s: S.reportPhase === "ready" ? "ready" : "idle" },
+    { n: T.det, h: "NASA FIRMS VIIRS",
+      v: S.detections.length ? `${S.detections.length} · ${orUn(S.status?.data_state)}` : T.loading,
+      s: S.detections.length ? "ready" : "idle" },
+    { n: T.aiRes, h: "live-v1 model",
+      v: aiServed ? (S.ai.model || T.aiModel) : (S.aiPhase === "loading" ? T.loading : "—"),
+      s: aiServed ? "ready" : "idle" },
+    { n: T.what, h: `${T.where} · ${T.signal}`,
+      v: S.detailPhase === "ready" ? `${orUn(S.detail.wilaya_name)} · ${numOpt(S.detail.frp, 1)} MW` : "—",
+      s: S.detailPhase === "ready" ? "ready" : "idle" },
+    { n: T.prioTitle, h: "priority-v1",
+      v: S.incPhase === "error" ? T.unavailable
+        : S.incidents.length ? `${S.incidents.length} ${T.incN}` : T.incEmpty,
+      s: S.incPhase === "error" ? "unavail" : S.incidents.length ? "ready" : "idle" },
+    { n: T.reportTitle, h: "report-v1",
+      v: S.reportPhase === "ready" ? T.reportTitle : "—",
+      s: S.reportPhase === "ready" ? "ready" : "idle" },
   ];
-  document.getElementById("flow").innerHTML = stages.map((s, i) => `
-    <li class="flow-node ${s.s}">
-      <span class="flow-idx">${i + 1}</span>
-      <span class="flow-body">
-        <b class="flow-name">${esc(s.n)}</b>
-        <span class="flow-hint">${esc(s.h)}</span>
-        <span class="flow-val">${esc(s.v)}</span>
-      </span>
-      ${i < stages.length - 1 ? '<span class="flow-link"></span>' : ""}
-    </li>`).join("");
+  const done = stages.filter((s) => s.s === "ready").length;
+  const pct = Math.round((done / stages.length) * 100);
+  document.getElementById("flow").innerHTML = `
+    <div class="flow-progress" aria-label="pipeline ${pct}% complete">
+      <span class="flow-fill" style="width:${pct}%"></span>
+      <span class="flow-txt">${done}/${stages.length} ${esc(T.chainReady)}</span>
+    </div>
+    ${stages.map((s, i) => `
+      <li class="flow-node ${s.s}">
+        <span class="flow-idx">${i + 1}</span>
+        <span class="flow-body">
+          <b class="flow-name">${esc(s.n)}</b>
+          <span class="flow-hint">${esc(s.h)}</span>
+          <span class="flow-val">${esc(s.v)}</span>
+        </span>
+        ${i < stages.length - 1 ? '<span class="flow-link"></span>' : ""}
+      </li>`).join("")}`;
 }
 
 /* ---------------------------------------------------------------- incidents */
@@ -397,14 +428,37 @@ function renderIncidents() {
 
   list.innerHTML = S.incidents.map((inc) => {
     const p = inc.priority || {};
+    const level = String(p.level || "").toLowerCase();
     const open = S.expanded === inc.id;
-    return `<li class="inc">
-      <div class="row"><span class="prio ${esc(String(p.level || "").toLowerCase())}">${esc(orUn(p.level))}</span>
-        <span class="score">${typeof p.score === "number" ? p.score.toFixed(4) : T.unavailable}</span></div>
-      <div class="row"><b>${inc.detection_count} ${esc(T.det)}</b>
-        <span>${esc((inc.wilayas || []).join(", ") || T.unavailable)}</span></div>
-      <div class="row"><span>${esc(T.when)}</span><span>${esc(fmt(inc.last_acq))}</span></div>
-      <div class="row"><span>${esc(T.frp)}</span><span>${esc(inc.max_frp)} MW</span></div>
+    const score = typeof p.score === "number" ? p.score : null;
+    const scorePct = score === null ? 0 : Math.max(0, Math.min(100, score * 100));
+    const dl = d => (new Date(d)).getTime();
+    const ageH = (dl(Date.now()) - dl(inc.last_acq)) / 3600000;
+    const ageTxt = ageH < 1 ? `${Math.max(1, Math.round(ageH * 60))}m ago`
+      : ageH < 24 ? `${ageH.toFixed(1)}h ago` : `${Math.round(ageH / 24)}d ago`;
+    const wilas = (inc.wilayas || []);
+    const liveInc = inc.verification && inc.verification.status === "available";
+    return `<li class="inc ${level}">
+      <div class="inc-top">
+        <span class="prio-badge ${level}">${esc(orUn(p.level))}</span>
+        <span class="score" title="${esc(T.scoreLbl)}">
+          <i style="width:${scorePct}%"></i>
+          <b>${score === null ? T.unavailable : score.toFixed(4)}</b>
+        </span>
+      </div>
+      <div class="inc-title">
+        <b>${inc.detection_count} ${esc(T.det)}</b>
+        ${wilas.length ? `<span class="wilas">${esc(wilas.slice(0, 3).join(", "))}${wilas.length > 3 ? ` +${wilas.length - 3}` : ""}</span>` : ""}
+      </div>
+      <div class="inc-meta">
+        <span>${esc(fmt(inc.last_acq))}</span>
+        <span class="age">${esc(ageTxt)}</span>
+      </div>
+      <div class="inc-meta">
+        <span>${esc(T.frp)} <b>${esc(inc.max_frp)} MW</b></span>
+        ${inc.satellites?.length ? `<span>${esc(inc.satellites.join(" · "))}</span>` : ""}
+      </div>
+      <div class="inc-persist">${esc(T.when)} ${esc(inc.persistence_hours != null ? `${Number(inc.persistence_hours).toFixed(1)}h` : T.unavailable)}</div>
       <div class="acts">
         <button class="lbtn-s" data-act="expand" data-id="${esc(inc.id)}">${esc(T.prioTitle)}</button>
         <button class="lbtn-s" data-act="report" data-id="${esc(inc.id)}">${esc(T.reportOpen)}</button>
@@ -419,7 +473,8 @@ function renderIncidents() {
         }).join("")}
         <p class="note">${esc(T.prioMissing)}${esc((p.unavailable_factors || []).join(", "))}</p>
         <p class="note strong">${esc(T.prioNotAI)}</p>
-        <div class="row"><span>${esc(T.incVerif)}</span><span>${esc(orUn((inc.verification || {}).status))}</span></div>
+        <div class="row"><span>${esc(T.incVerif)}</span>
+          <span class="${liveInc ? "ok" : ""}">${esc(orUn((inc.verification || {}).status))}</span></div>
         <p class="note">${esc(T.incVerifNote)}</p>
       </div>` : ""}
       <div class="pid">${esc(inc.id)}</div>
@@ -689,6 +744,15 @@ function initMap() {
         "circle-radius": ["interpolate", ["linear"], ["get", "frp"],
           0, 4, 10, 4, 100, 6, 500, 9, 2000, 13],
         "circle-opacity": 0.85,
+      } });
+    map.addLayer({ id: "live-glow", type: "circle", source: "detections",
+      filter: ["all", ["!", ["has", "point_count"]], ["!=", ["get", "state"], "HISTORICAL"]],
+      paint: {
+        "circle-color": "#e5484d",
+        "circle-radius": ["interpolate", ["linear"], ["get", "frp"],
+          0, 10, 10, 10, 100, 14, 500, 18, 2000, 24],
+        "circle-opacity": 0.14,
+        "circle-blur": 0.6,
       } });
     map.addLayer({ id: "live", type: "circle", source: "detections",
       filter: ["all", ["!", ["has", "point_count"]], ["!=", ["get", "state"], "HISTORICAL"]],

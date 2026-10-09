@@ -131,6 +131,65 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 700; }
 .mapbtn[aria-pressed="true"] { color: var(--pine); border-color: var(--pine-dim); }
 .mapctl .pill { background: rgba(13,20,17,.92); backdrop-filter: blur(3px); }
 
+/* ── chain: live pipeline progress ─────────────────────────── */
+.flow-progress { position: relative; height: 16px; border-radius: 4px;
+  background: var(--surface-2); overflow: hidden; margin-bottom: 6px; }
+.flow-fill { position: absolute; inset: 0 auto 0 0; border-radius: 4px;
+  background: linear-gradient(90deg, var(--pine-dim), var(--pine));
+  transition: width .5s ease; }
+.flow-txt { position: relative; z-index: 1; display: block; text-align: center;
+  font-size: 9px; line-height: 16px; letter-spacing: .4px; color: var(--text);
+  text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+.flow-node.ready .flow-idx { background: var(--pine); border-color: var(--pine); color: #06110c; }
+.flow-node.idle .flow-idx { border-style: dashed; }
+.flow-node.unavail .flow-idx { border-color: var(--live); color: var(--live); }
+.flow-node.unavail .flow-val { color: var(--live); }
+.flow-val { color: var(--sand); font-variant-numeric: tabular-nums; }
+
+/* ── wilaya list: ranked bars ──────────────────────────────── */
+.wil-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.wil-list li { display: grid; grid-template-columns: 1fr 46px 26px; align-items: center;
+  gap: 8px; padding: 4px 8px; border-radius: 6px; cursor: pointer;
+  border: 1px solid transparent; transition: background .15s ease, border-color .15s ease; }
+.wil-list li:hover { background: var(--surface); }
+.wil-list li.on { background: var(--surface-2); border-color: var(--pine-dim); }
+.wil-list .n { font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wil-list .bar { height: 3px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+.wil-list .bar i { display: block; height: 100%; border-radius: 2px;
+  background: linear-gradient(90deg, var(--pine-dim), var(--pine)); }
+.wil-list li.on .bar i { background: linear-gradient(90deg, var(--sand), #fff); }
+.wil-list .v { font-size: 10.5px; color: var(--muted); text-align: right;
+  font-variant-numeric: tabular-nums; }
+
+/* ── incident cards: priority encoding ─────────────────────── */
+.inc { border: 1px solid var(--border); border-radius: 10px; padding: 10px;
+  background: var(--panel-2); transition: border-color .2s ease, box-shadow .2s ease; }
+.inc:hover { border-color: var(--border-2); }
+.inc.critical { border-inline-start: 3px solid var(--live); }
+.inc.moderate { border-inline-start: 3px solid var(--warn); }
+.inc.low { border-inline-start: 3px solid var(--pine); }
+.inc-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.prio-badge { font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px; }
+.prio-badge.critical { background: rgba(229,72,77,.16); color: var(--live); }
+.prio-badge.moderate { background: rgba(224,179,65,.14); color: var(--warn); }
+.prio-badge.low { background: rgba(63,168,124,.14); color: var(--pine); }
+.score { position: relative; flex: 1 1 auto; max-width: 130px; height: 14px; border-radius: 3px;
+  background: var(--surface-2); overflow: hidden; }
+.score i { position: absolute; inset: 0 auto 0 0; border-radius: 3px;
+  background: linear-gradient(90deg, var(--pine-dim), var(--sand)); }
+.score b { position: relative; z-index: 1; display: block; text-align: right;
+  font-size: 9px; line-height: 14px; padding-inline-end: 5px; font-variant-numeric: tabular-nums; }
+.inc-title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 7px; }
+.inc-title b { font-size: 13px; }
+.wilas { font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; max-width: 150px; }
+.inc-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 10px;
+  color: var(--muted); margin-top: 3px; }
+.inc-meta b { color: var(--text); font-weight: 600; }
+.inc-meta .age { color: var(--sand); }
+.inc-persist { font-size: 9.5px; color: var(--muted); opacity: .8; margin-top: 4px; }
+
 /* ── legend: FRP scale ──────────────────────────────────────── */
 .sw.frp0 { background: #d9a441; }
 .sw.frp1 { background: #e08b3d; }
