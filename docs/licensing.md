@@ -99,15 +99,15 @@ Read from each installed `package.json` on 2026-10-09.
 | @types/react | MIT | 18.3.31 |
 | @types/react-dom | MIT | 18.3.7 |
 
-Swept across the whole installed tree (217 packages, lockfile v3 with 256
-entries): **9 distinct licences — MIT 166, ISC 21, undeclared 11, BSD-3-Clause 7,
-Apache-2.0 5, BSD-2-Clause 4, MIT-0 1, CC-BY-4.0 1 (caniuse-lite), BlueOak-1.0.0
-1 (isexe). No GPL, LGPL, AGPL or MPL was declared anywhere in the tree.**
+Swept across the whole installed tree (210 installed package roots; the lockfile
+tracks 256 entries): **MIT 166, ISC 23, BSD-3-Clause 7, Apache-2.0 5, BSD-2-Clause 4,
+MIT-0 1, CC-BY-4.0 1 (caniuse-lite), BlueOak-1.0.0 1 (isexe) — 9 distinct licences.
+No GPL, LGPL, AGPL or MPL was declared anywhere in the tree.** Every installed
+package declares a machine-readable `license` field.
 
-The 11 packages with no machine-readable `license` field are `gl-matrix` type and
-sub-module packages; `maplibre-gl` appeared in that set in one automated pass but
-declares BSD-3-Clause when read directly, and its own bundle header and
-`apps/site/vendor/LICENSE-maplibre.txt` confirm it.
+One package, `gl-matrix`, additionally ships 11 nested sub-manifests (`mat2`,
+`vec3`, `mat4`, …) that carry no `license` field of their own; the `gl-matrix`
+package itself declares MIT.
 
 `apps/web/package-lock.json` is deliberately tracked. It is how a fresh clone
 resolves identical versions, and `npm ci` requires it.

@@ -56,6 +56,11 @@ function Cleanup {
   # spawned, which keeps listening on the API port and makes the NEXT run fail
   # to bind. Reap any listener whose command line points inside our scratch
   # directory - scoped to $scratch so we can never kill someone else's process.
+  # NOTE the asymmetry: this only reaps the API. The site is launched as
+  # `python -m http.server` with -WorkingDirectory, so its scratch path is NOT
+  # in its command line and cannot be matched here - it is safe only because it
+  # is a direct child whose PID is in $startedPids. Do not assume the reap
+  # covers the site if that launch is ever changed to a wrapper.
   foreach ($port in @($ApiPort, $SitePort)) {
     try {
       Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue | ForEach-Object {
@@ -128,7 +133,7 @@ Assert ([int]$rows -gt 0) "archive fetch stored $rows detections"
 Assert (Test-Path (Join-Path $scratch 'data\db\numidia.db')) "database file created"
 # The ingest must NOT claim an AI verdict when no artifact is registered.
 if ($fetch -match '"status":\s*"AI_UNAVAILABLE"') { Ok "ingest reported AI_UNAVAILABLE (no artifact registered)" }
-else { Info "NOTE: ingest reported a verification block that was not AI_UNAVAILABLE - inspect manually" }
+else { Bad "ingest did NOT report AI_UNAVAILABLE - the artifact may be registered when it should not be" }
 
 # ------------------------------------------------------------------ 5. API
 Step "5. API on port $ApiPort"

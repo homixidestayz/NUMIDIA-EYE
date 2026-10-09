@@ -10,10 +10,18 @@ trained verifier with its provenance. It does **not** give you a database or a
 `.env` — and that is deliberate: the database is regenerated from NASA FIRMS, and
 credentials are never committed.
 
-Measured on a clean clone of `origin/main` at `277cc23`: **121 files**, containing
-`data/labels/` (the v2 labelled dataset, 53,615 rows), `apps/site/` (10 files) and
+Measured on a clean clone of `origin/main`: **133 tracked files**, containing
+`data/labels/` (the v2 labelled dataset, 53,615 rows), `apps/site/` (11 files) and
 `services/ml/models/verifier_v2/` (including `model.joblib`, 48.5 MB), and **no**
 `.env` and **no** `data/db/`.
+
+**Order matters: populate the database before you start the API or run the tests.**
+`numidia_core.db.connect()` creates `data/db/numidia.db` if it is missing, but it
+does not create the schema, so a request that reaches the database before Route A
+has run hits `sqlite3.OperationalError: no such table: detections` and returns
+HTTP 500 rather than a truthful response. This is a known robustness gap in the
+frozen API/DB layer, reported rather than fixed in this release. Route A below
+resolves it in seconds.
 
 The database gap is closed by the commands below. It requires no credentials and
 no invented data.
@@ -235,10 +243,17 @@ changing that module would invalidate the artifact's own verification contract.
 git clone https://github.com/homixidestayz/NUMIDIA-EYE.git
 cd NUMIDIA-EYE
 uv sync --extra api --extra ml --extra dev
-uv run pytest -q                       # 207 passed
+
+# Populate the database BEFORE the tests: 5 tests exercise the API against real
+# production detections and skip when there is no usable database.
 uv run python -m numidia_worker.cli --db data/db/numidia.db fetch --mode archive
+
+uv run pytest -q                       # 207 passed, 0 skipped
 uv run uvicorn numidia_api.app:app --host 0.0.0.0 --port 8010
 ```
+
+Without the archive fetch the suite reports **202 passed, 5 skipped** rather than
+failing - the five tests that need a populated database skip with a stated reason.
 
 `scripts/verify_clean_clone.ps1` automates exactly this sequence.
 

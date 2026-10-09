@@ -32,6 +32,35 @@ requires_artifact = pytest.mark.skipif(
     reason="no trained verifier artifact (run `experiment --verifier` first)")
 
 
+def production_db_usable() -> bool:
+    """True only if there is a READABLE production DB with real detections.
+
+    `DB.exists()` is not a sufficient guard. `numidia_core.db.connect()` does
+    `mkdir` and then `sqlite3.connect`, which CREATES the file, so any earlier
+    test that touches the database leaves an empty numidia.db behind. The
+    existence check then passes and every query raises
+    "no such table: detections".
+
+    That matters on a fresh clone, where there is no database at all: these
+    tests are explicitly about real production data (their skip messages say
+    "no production database present"), so they must SKIP, not fail, when the
+    database is absent or empty.
+    """
+    if not DB.exists():
+        return False
+    import sqlite3
+    try:
+        con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
+        try:
+            row = con.execute(
+                "select 1 from detections limit 1").fetchone()
+        finally:
+            con.close()
+    except sqlite3.Error:
+        return False
+    return row is not None
+
+
 def _raise_unregistered(artifact=None):
     """Stand-in resolver for the 'nothing registered' case."""
     raise VerifierUnavailable(
@@ -264,7 +293,7 @@ def test_ai_endpoint_serves_real_inference(monkeypatch, tmp_path):
     from numidia_api import app as app_mod
     from numidia_core import db as db_mod
 
-    if not DB.exists():
+    if not production_db_usable():
         pytest.skip("no production database present")
     import sqlite3
     con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
@@ -314,7 +343,7 @@ def test_ai_endpoint_fails_closed_without_model(monkeypatch, tmp_path):
     from fastapi.testclient import TestClient
     from numidia_api import app as app_mod
 
-    if not DB.exists():
+    if not production_db_usable():
         pytest.skip("no production database present")
     import sqlite3
     con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
@@ -346,7 +375,7 @@ def test_ai_endpoint_fails_closed_on_tampered_artifact(monkeypatch, tmp_path):
     import shutil
     from numidia_api import app as app_mod
 
-    if not DB.exists() or not has_artifact:
+    if not production_db_usable() or not has_artifact:
         pytest.skip("needs database and artifact")
     import sqlite3
     con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)

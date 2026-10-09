@@ -56,9 +56,18 @@ mismatched or tampered artifact. It is read-only and never registers anything.
 ### Provenance chain pinned in `manifest.json`
 
 The manifest records `source_code_sha256` over `verifier_split.py`,
-`verifier_train.py`, `verifier_model.py`, `inference.py` and `labels.py`. Changing
-any of those files invalidates the recorded hashes. This is why the training code
-is not refactored casually and why there is no `train` CLI subcommand.
+`verifier_train.py`, `verifier_model.py`, `inference.py` and `labels.py`.
+Changing any of those files invalidates the recorded hashes. This is why the
+training code is not refactored casually and why there is no `train` CLI
+subcommand.
+
+**Known limitation of those hashes:** they were recorded at training time and
+**three of the five are now stale** against the committed code (`verifier_model.py`,
+`inference.py`, and `labels.py`, the last differing only by line-ending form). This
+predates the model's release and is not a symptom of tampering. They are recorded
+for provenance only: **`verify_artifact` does not enforce them** — it checks the
+feature contract, the dataset SHA and the metric replay, which is why it reports
+9/9 PASS. Treat them as a historical record, not as a live integrity gate.
 
 ## Full provenance of the training labels
 
@@ -73,7 +82,7 @@ ground truth. No label is derived from FIRMS itself.
 | `VIIRS_Global_flaring_d.7_slope_0.029353_2021_web.xlsx` | 217 | `7d2a2aac8733f7290c4851fe54e30cbca3aeee463363af060efbc924a54ef488` |
 | `VIIRS_Global_flaring_d.7_slope_0.029353_2022_v20230526_web.xlsx` | 210 | `c9fa2ec4440445155be99e44d1bdb88ae3b1a989c54bb788288b248b47d1b8a3` |
 | `VIIRS_Global_flaring_d.7_slope_0.029353_2023_v20230614_web_IDmatch.xlsx` | 219 | `3a4607100413af2d56746d31ede71aea1a698dc1f9edfedd3694f70509470193` |
-| `VIIRS_Global_flaring_d.7_slope_0.029353_2024_v20240730_web_IDmatch.xlsx` | 244 | `2fcf27fe9d4a4322b62ecf9f89a4a34ad0842c192f3903e9568ae4f32e0ed6` |
+| `VIIRS_Global_flaring_d.7_slope_0.029353_2024_v20240730_web_IDmatch.xlsx` | 244 | `2fcf6f27fe9d4a4322b62ecf9f89a4a34ad0842c192f3903e9568ae4f32e0ed6` |
 
 Source: Earth Observation Group (EOG), Payne Institute for Public Policy,
 Colorado School of Mines. Distributed from
@@ -87,7 +96,7 @@ Colorado School of Mines. Distributed from
 | `EMSR533_AOI01_GRA_PRODUCT_r1_RTP01_v1_vector.zip` | Tizi Ouzou | 111 | `afd970a790d0e6feb5907f48412ab8b07597b7fad307673c876df70b02c3a31b` |
 | `EMSR533_AOI02_DEL_PRODUCT_r1_RTP01_v2_vector.zip` | Aokas | 26 | `ecdbac7e0aa7919d8e5b2c2871af15d454a9b06be7a86c0150528ed3d37e6e9e` |
 | `EMSR533_AOI02_GRA_PRODUCT_r1_RTP01_v1_vector.zip` | Aokas | 35 | `762ee17e62d0260439d24fea50c32baecf3bc3fc5fc7370ce22a024df01b2b37` |
-| EFFIS MODIS seasonal burnt-area DB (WFS `ms:modis.ba.poly`, 2016-2026) | Algeria-wide | 4,554 sites used | `8ced1e04d4c51a37e16de23ae7a5fb60824aee557b1797b259f15942f7f7390a` |
+| EFFIS MODIS seasonal burnt-area DB (WFS `ms:modis.ba.poly`, 2016-2026) | Algeria-wide | 107,428 source records; **4,554 Algeria features used** | `8ced1e04d4c51a37e16de23ae7a5fb60824aee557b1797b259f15942f7f7390a` |
 
 Source: Copernicus Emergency Management Service, activation **EMSR533 — Algeria
 Forest Fires**, and the EFFIS Rapid Damage Assessment service.

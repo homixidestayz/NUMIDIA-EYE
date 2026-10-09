@@ -63,8 +63,8 @@ uv run python -m numidia_worker.cli fetch
 uv run python -m numidia_worker.cli fetch --mode archive
 
 # run the API (starts the scheduler: ingestion every NUMIDIA_INGEST_INTERVAL_MIN)
-uv run uvicorn numidia_api.app:app --host 0.0.0.0 --port 8000
-# → http://localhost:8000/docs
+uv run uvicorn numidia_api.app:app --host 0.0.0.0 --port 8010
+# → http://localhost:8010/docs
 
 # frontend
 cd apps/web && npm install && npm run dev   # Node >= 18 (not in this build env)
