@@ -112,6 +112,12 @@ else { Info "NOTE: ingest reported a verification block that was not AI_UNAVAILA
 
 # ------------------------------------------------------------------ 5. API
 Step "5. API on port $ApiPort"
+# Clear the variable BEFORE Start-Process: a child process inherits the parent
+# environment at launch, so setting it afterwards would not affect the API and
+# the fail-closed probe below would silently test whatever this shell happened
+# to have. We deliberately test the UNSET default.
+$env:NUMIDIA_ACTIVE_MODEL = $null
+Info "NUMIDIA_ACTIVE_MODEL is unset for this run - testing the fail-closed default"
 Push-Location $scratch
 $api = Start-Process -PassThru -WindowStyle Hidden -FilePath "uv" `
         -ArgumentList @('run','uvicorn','numidia_api.app:app','--host','127.0.0.1','--port',"$ApiPort") `
@@ -137,7 +143,6 @@ if ($ready) {
 
   # ------------------------------------------------- 6. fail-closed contract
   Step "6. /ai must fail CLOSED without a registered artifact"
-  $env:NUMIDIA_ACTIVE_MODEL = ''   # ensure the default unset path
   try {
     $det = Invoke-RestMethod "http://127.0.0.1:$ApiPort/detections?limit=1" -TimeoutSec 60
     if ($det -and @($det).Count -gt 0) {
