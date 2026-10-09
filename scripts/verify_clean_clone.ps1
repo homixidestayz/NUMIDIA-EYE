@@ -51,6 +51,26 @@ function Cleanup {
   foreach ($pid_ in $startedPids) {
     try { Stop-Process -Id $pid_ -Force -EA SilentlyContinue; Write-Host "   .. stopped pid $pid_" } catch {}
   }
+
+  # Stop-Process on the `uv` wrapper does NOT reach the uvicorn grandchild it
+  # spawned, which keeps listening on the API port and makes the NEXT run fail
+  # to bind. Reap any listener whose command line points inside our scratch
+  # directory - scoped to $scratch so we can never kill someone else's process.
+  foreach ($port in @($ApiPort, $SitePort)) {
+    try {
+      Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue | ForEach-Object {
+        $owner = $_.OwningProcess
+        $proc  = Get-CimInstance Win32_Process -Filter "ProcessId=$owner" -EA SilentlyContinue
+        if ($proc -and $proc.CommandLine -and $proc.CommandLine -like "*$scratch*") {
+          Stop-Process -Id $owner -Force -EA SilentlyContinue
+          Write-Host "   .. reaped leaked listener pid $owner on port $port (grandchild of the wrapper)"
+        } elseif ($proc) {
+          Write-Host "   .. port $port held by pid $owner OUTSIDE this scratch dir - left alone"
+        }
+      }
+    } catch {}
+  }
+
   # remove only our own scratch dir
   if ($scratch -and (Test-Path $scratch) -and $scratch -like '*numidia-clean-clone-*') {
     try { Remove-Item $scratch -Recurse -Force -EA SilentlyContinue; Write-Host "   .. removed $scratch" } catch {}
