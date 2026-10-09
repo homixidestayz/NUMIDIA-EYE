@@ -76,6 +76,70 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 700; }
 .mapwrap { position: relative; flex: 1 1 auto; min-width: 320px; }
 #map { position: absolute; inset: 0; }
 
+/* ── environment panel ───────────────────────────────────────── */
+.env .env-top { display: flex; gap: 14px; align-items: flex-start; }
+.dial { width: 96px; height: 96px; flex: 0 0 auto; }
+.dial-ring { fill: rgba(22,32,27,.6); stroke: var(--border-2); stroke-width: 1; }
+.dial-tick { stroke: var(--border-2); stroke-width: 1; }
+.dial-n { fill: var(--muted); font-size: 8px; text-anchor: middle; font-family: inherit; }
+.dial-arrow { fill: var(--accent); }
+.dial-arrow.calm { fill: var(--muted); }
+.dial-hub { fill: var(--text); }
+.env-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; flex: 1 1 auto; min-width: 0; }
+.env-metrics .kv { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.env-metrics .kv span { white-space: nowrap; }
+.env .kv em { font-style: normal; font-size: 9.5px; color: var(--muted); }
+.env .kv span { font-variant-numeric: tabular-nums; font-size: 11.5px; }
+.note.small { font-size: 10px; margin: 5px 0 0; }
+.note.dim { color: var(--muted); opacity: .7; }
+
+/* ── vulnerability bands ─────────────────────────────────────── */
+.vul { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--border); }
+.vul-h { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-size: 10.5px; letter-spacing: .4px; color: var(--sand); margin-bottom: 8px; }
+.vul-flag { font-size: 8.5px; letter-spacing: .2px; color: var(--muted);
+  border: 1px solid var(--border-2); border-radius: 999px; padding: 1px 7px; }
+.band { margin-bottom: 8px; }
+.band-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 10px; }
+.band-h span { color: var(--muted); }
+.band-h b { font-variant-numeric: tabular-nums; font-weight: 600; }
+.band-t { height: 4px; border-radius: 2px; background: var(--surface-2);
+  overflow: hidden; margin: 3px 0 2px; }
+.band-f { height: 100%; border-radius: 2px;
+  background: linear-gradient(90deg, var(--pine-dim), var(--warn)); transition: width .35s ease; }
+.band-n { font-size: 8.5px; color: var(--muted); opacity: .78; }
+
+/* ── hover popup ────────────────────────────────────────────── */
+.hpop .maplibregl-popup-content { background: var(--panel); border: 1px solid var(--border-2);
+  border-radius: 8px; padding: 9px 11px; box-shadow: 0 8px 24px rgba(0,0,0,.55); }
+.hpop .maplibregl-popup-tip { border-top-color: var(--border-2); border-bottom-color: var(--border-2); }
+.hp-h { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.hp-h b { font-size: 12px; }
+.hp-frp { font-size: 11px; font-variant-numeric: tabular-nums; }
+.hp-r { display: flex; justify-content: space-between; gap: 12px; font-size: 10px;
+  color: var(--muted); margin-top: 2px; }
+.hp-id { font-size: 8.5px; color: var(--muted); opacity: .6; margin-top: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* ── legend: FRP scale ──────────────────────────────────────── */
+.sw.frp0 { background: #d9a441; }
+.sw.frp1 { background: #e08b3d; }
+.sw.frp2 { background: #e5484d; }
+.sw.frp3 { background: #ff6b6b; width: 12px; height: 12px; }
+.li.sep { border-inline-start: 1px solid var(--border-2); padding-inline-start: 10px; margin-inline-start: 4px; }
+
+/* ── keyboard help ──────────────────────────────────────────── */
+.keyhelp { position: fixed; inset-block-end: 14px; inset-inline-start: 50%;
+  transform: translateX(-50%); display: flex; align-items: center; gap: 12px;
+  background: var(--panel); border: 1px solid var(--border-2); border-radius: 10px;
+  padding: 7px 14px; font-size: 10.5px; color: var(--muted); z-index: 40;
+  box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.keyhelp b { color: var(--sand); font-size: 10px; letter-spacing: .4px; }
+.keyhelp span { display: inline-flex; align-items: center; gap: 3px; }
+.keyhelp kbd { background: var(--surface-2); border: 1px solid var(--border-2);
+  border-radius: 3px; padding: 1px 4px; font-size: 9px; color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
 /* ── panels ─────────────────────────────────────────────────── */
 .panel { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 .panel:last-child { margin-bottom: 0; }

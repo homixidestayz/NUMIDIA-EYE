@@ -54,18 +54,27 @@
     <div id="map"></div>
     <div class="maphud" id="wil-hud" hidden></div>
     <div class="legend">
-      <span class="legend-title">Legend</span>
-      <span class="li"><i class="sw live"></i><span>LIVE detection</span></span>
-      <span class="li"><i class="sw hist"></i><span>Historical detection</span></span>
-      <span class="li"><i class="sw sel"></i><span>Selected detection</span></span>
+      <span class="legend-title">Fire Radiative Power</span>
+      <span class="li"><i class="sw frp0"></i><span>&lt;10 MW</span></span>
+      <span class="li"><i class="sw frp1"></i><span>10-100 MW</span></span>
+      <span class="li"><i class="sw frp2"></i><span>100-500 MW</span></span>
+      <span class="li"><i class="sw frp3"></i><span>&gt;500 MW</span></span>
+      <span class="li sep"><i class="sw sel"></i><span>Selected</span></span>
       <span class="li"><i class="sw clu"></i><span>Cluster at this zoom</span></span>
-      <span class="li"><i class="sw wil"></i><span>Wilaya boundary — click to focus</span></span>
+      <span class="li"><i class="sw wil"></i><span>Wilaya boundary - click to focus</span></span>
     </div>
     <button class="resetbtn" id="reset-wil" hidden>Show all wilayas</button>
   </section>
 
   <aside class="side" aria-label="Selected detection">
     <div class="stats" id="stats"></div>
+    <section class="panel">
+      <div class="panel-head">
+        <span class="panel-title" id="t-env">Environment at incident</span>
+        <span class="pill" id="env-flag"></span>
+      </div>
+      <div id="env-slot"></div>
+    </section>
     <div id="detail-slot"></div>
     <div id="ai-slot"></div>
     <section class="panel">
