@@ -515,6 +515,33 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="incident not found")
         return incidents_mod.validate_detail(detail)
 
+    @app.get("/incidents/{incident_id}/environment")
+    def get_incident_environment(incident_id: str) -> dict:
+        """Environmental context for an incident, sampled at its centroid.
+
+        Separate from `/incidents` on purpose: this costs one upstream call per
+        request, so folding it into the list endpoint would make a 100-incident
+        page issue 100 network calls. It also reaches a third-party API, so it
+        must never be able to slow down or fail the incident list itself.
+
+        Returns 200 with `status: UNAVAILABLE` and a reason when the upstream
+        cannot be read. It never returns a substituted value.
+        """
+        from numidia_env import incident_context as env_context_mod
+
+        detail = incidents_mod.get_incident(incident_id, path=app.state.db_path)
+        if detail is None:
+            raise HTTPException(status_code=404, detail="incident not found")
+        try:
+            return env_context_mod.environment_for_incident(detail)
+        except Exception as exc:  # noqa: BLE001 - a third-party call must not 500
+            return {
+                "status": "UNAVAILABLE",
+                "incident_id": incident_id,
+                "reason": f"{type(exc).__name__}: {exc}",
+                "attached_to": "incident_centroid",
+            }
+
     @app.get("/incidents/{incident_id}/report")
     def get_incident_report(incident_id: str) -> dict:
         report = reports_mod.build_report(incident_id, path=app.state.db_path)
