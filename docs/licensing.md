@@ -16,11 +16,41 @@ out in [Why no project licence is proposed](#why-no-project-licence-is-proposed)
 |---|---|---|---|
 | NASA FIRMS NRT Area API | live detections | Open; attribution to NASA FIRMS required | `apps/site/provenance.md`; [firms.modaps.eosdis.nasa.gov](https://firms.modaps.eosdis.nasa.gov/) |
 | NASA FIRMS public archives (`*_C2_Global_24h`) | keyless detections, backfill, tests | Open; attribution required | same |
-| geoBoundaries Algeria ADM1 (48 units) | wilaya boundaries, bundled | **Check upstream before redistribution** | `apps/site/provenance.md` already flags this; not independently confirmed here |
+| OpenStreetMap `admin_level=4` relations for the 69 wilayas, via the GeoAlgeria dataset package (retrieved 2026-10-09) | wilaya boundaries, bundled | **ODbL 1.0, © OpenStreetMap contributors** — attribution required, derived databases share-alike | `packages/dataset/LICENSE` in `github.com/yasserstudio/geoalgeria`, which states the ODbL terms for `data/geojson/wilaya-boundaries.geojson` in full |
 | Copernicus EMS Rapid Mapping, activation **EMSR533** | verifier positive ground truth (4 products, 253 records) | EU open data; attribution to the Copernicus Emergency Management Service with the activation ID | `data/labels/manifest_v2.json` → `ground_truth[0..3]`, each with URL + SHA-256 |
 | EFFIS Rapid Damage Assessment burnt-area DB | verifier positive ground truth (4,554 Algeria features used of 107,428 source records) | EU open data; attribution required | `ground_truth[9]`, WFS `ms:modis.ba.poly`, URL + SHA-256 recorded; count from `effis_dz_features` |
 | EOG VIIRS Nightfire annual flare files, 2020-2024 | verifier negative ground truth (1,124 site records) | **UNRESOLVED — see below** | `ground_truth[4..8]`; EOG licensing pages |
 | The project's own FIRMS-derived labels, incidents, priority, reports | derived outputs | outputs of this project | — |
+
+### Attribution you must carry
+
+- **Wilaya boundaries** — © OpenStreetMap contributors, ODbL 1.0. Redistributing a
+  derived boundary database requires keeping it under a compatible licence.
+- **NASA FIRMS** — attribution to NASA FIRMS required.
+
+### The 48 → 69 wilaya correction
+
+The bundled boundaries previously used a geoBoundaries ADM1 extract of the **1984**
+48-wilaya delineation. Algeria now has **69** wilayas: the 2019 reform (Law 19-12)
+promoted 10 southern delegated wilayas, and the 2026 reform (Law 26-06, *Journal
+Officiel* n° 25 of 5 April 2026) promoted 11 Hauts Plateaux ones. Under the old file
+every promoted wilaya resolved to its parent — including In Salah, Touggourt, Djanet
+and El M'Ghair, which are oil and gas fields and were reported as Tamanrasset,
+Ouargla, Illizi and El Oued respectively.
+
+Both sources are attributed open datasets, so this is a CC-BY-4.0 → ODbL 1.0 swap,
+not an uncredited substitution. Pinned by `tests/test_wilaya_boundaries.py`.
+
+### GeoAlgeria fire data — permission, not licence
+
+The GeoAlgeria fire history and DGPC bulletins are used with the **permission of the
+data owner**, reported by the project founder on 2026-10-09. The permission document
+is held by the founder and is not committed here. These records carry **no published
+open licence**, so the permission — not the site's terms — is what authorises them.
+
+GeoAlgeria's `@geoalgeria/protection-civile` package (880 DGPC units) states
+*"no stated open licence"* and is **not** ingested. The 69-wilaya boundaries are the
+only data taken from that project.
 
 ### The EOG VIIRS Nightfire question
 
