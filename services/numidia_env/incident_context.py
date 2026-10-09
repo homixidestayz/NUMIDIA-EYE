@@ -35,14 +35,24 @@ def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * r * asin(min(1.0, a ** 0.5))
 
 
-def centroid_spread_m(incident: dict) -> Optional[float]:
-    """Greatest distance from the centroid to a member detection, in metres."""
+def centroid_spread_m(incident: dict, members: Optional[list[dict]] = None) -> Optional[float]:
+    """Greatest distance from the centroid to a member detection, in metres.
+
+    `members` must be supplied by the caller. `get_incident()` returns
+    `member_ids`, not member rows, so a function that looked for
+    `incident["member_detections"]` would silently report no spread at all -
+    which is exactly the kind of empty-but-present reading that makes a stated
+    precision claim untrue.
+    """
     clat, clon = incident.get("centroid_lat"), incident.get("centroid_lon")
-    members = incident.get("member_detections") or incident.get("detections") or []
+    if members is None:
+        members = incident.get("member_detections") or incident.get("detections") or []
     if clat is None or clon is None or not members:
         return None
     distances = []
     for m in members:
+        if not isinstance(m, dict):
+            continue
         lat, lon = m.get("lat"), m.get("lon")
         if lat is None or lon is None:
             continue
@@ -53,6 +63,7 @@ def centroid_spread_m(incident: dict) -> Optional[float]:
 def environment_for_incident(
     incident: dict,
     *,
+    members: Optional[list[dict]] = None,
     cache: Optional[DiskCache] = None,
     fetcher: Optional[Callable[[float, float], dict]] = None,
 ) -> dict:
@@ -62,7 +73,7 @@ def environment_for_incident(
     """
     clat = incident.get("centroid_lat")
     clon = incident.get("centroid_lon")
-    spread = centroid_spread_m(incident)
+    spread = centroid_spread_m(incident, members)
 
     if clat is None or clon is None:
         return {

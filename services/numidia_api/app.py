@@ -532,8 +532,18 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
         detail = incidents_mod.get_incident(incident_id, path=app.state.db_path)
         if detail is None:
             raise HTTPException(status_code=404, detail="incident not found")
+
+        # get_incident() returns member_ids, not member rows. Without the actual
+        # coordinates the spread below reports nothing and the response claims a
+        # precision it never computed.
+        members = []
+        for member_id in (detail.get("member_ids") or [])[:500]:
+            row = db_mod.get_detection_row(member_id, path=app.state.db_path)
+            if row:
+                members.append(row)
+
         try:
-            return env_context_mod.environment_for_incident(detail)
+            return env_context_mod.environment_for_incident(detail, members=members)
         except Exception as exc:  # noqa: BLE001 - a third-party call must not 500
             return {
                 "status": "UNAVAILABLE",
