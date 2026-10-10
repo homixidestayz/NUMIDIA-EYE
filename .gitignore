@@ -48,6 +48,10 @@ services/ml/models/verifier_v2/*
 node_modules/
 apps/web/dist/
 apps/web/tsconfig.tsbuildinfo
+# apps/atlas/dist is build output, not source. Bundling Plus Jakarta Sans puts
+# ~1 MB of .woff/.woff2 in there, so tracking it would bloat every clone.
+apps/atlas/dist/
+apps/atlas/tsconfig.tsbuildinfo
 # NOTE: apps/web/package-lock.json is deliberately NOT ignored. The lockfile is
 # how a fresh clone gets identical dependency versions (256 packages, lockfile
 # v3); ignoring it makes `npm ci` impossible and defeats reproducible installs.

@@ -852,11 +852,36 @@ function focusWilaya(code) {
 let clusterMarkers = new Map();   // cluster_id -> marker
 let wilayaMarkers = new Map();    // code -> marker
 
+/* Exterior ring of a wilaya, handling both Polygon and MultiPolygon.
+   GeoJSON nests these differently: a Polygon's coordinates[0] IS the exterior
+   ring, while a MultiPolygon's coordinates[0] is a whole polygon (a list of
+   rings). Reading coordinates[0] as a ring unconditionally yields NaN for a
+   MultiPolygon - which is what Alger is - and MapLibre then throws
+   "Invalid LngLat object: (NaN, NaN)", aborting marker creation partway. */
+function exteriorRing(geometry) {
+  if (!geometry) return null;
+  const coords = geometry.coordinates;
+  if (!coords || !coords.length) return null;
+  if (geometry.type === "MultiPolygon") {
+    // Largest polygon by vertex count: the label belongs on the main landmass,
+    // not on an outlying island fragment.
+    let best = null;
+    for (const poly of coords) {
+      if (!poly || !poly.length) continue;
+      const ring = poly[0];
+      if (ring && (!best || ring.length > best.length)) best = ring;
+    }
+    return best;
+  }
+  return coords[0];
+}
+
 function wilayaAnchor(w) {
   // Area-weighted centroid of the exterior ring: a label sits inside the
   // wilaya rather than on its bounding box, which matters for the long
   // southern and coastal shapes.
-  const ring = w.geometry.coordinates[0];
+  const ring = exteriorRing(w.geometry);
+  if (!ring || ring.length < 2) return null;
   let a = 0, cx = 0, cy = 0;
   for (let i = 0, n = ring.length - 1; i < n; i++) {
     const [x0, y0] = ring[i], [x1, y1] = ring[i + 1];
@@ -872,11 +897,16 @@ function buildWilayaMarkers() {
   for (const [, m] of wilayaMarkers) m.remove();
   wilayaMarkers = new Map();
   for (const w of S.wilayas) {
+    const anchor = wilayaAnchor(w);
+    // Skip rather than throw: a single unanchorable wilaya must not abort the
+    // loop and leave the map with a partial label set, which is exactly what
+    // happened when the MultiPolygon centroid returned NaN.
+    if (!anchor) continue;
     const el = document.createElement("div");
     el.className = "wlabel";
     el.textContent = w.name;
     const mk = new maplibregl.Marker({ element: el, anchor: "center" })
-      .setLngLat(wilayaAnchor(w)).addTo(map);
+      .setLngLat(anchor).addTo(map);
     wilayaMarkers.set(String(w.code), mk);
   }
   syncWilayaLabels();
