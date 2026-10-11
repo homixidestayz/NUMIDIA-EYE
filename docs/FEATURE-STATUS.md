@@ -75,15 +75,15 @@ Verification pass: **2026-10-09**, against `origin/main` @ `de84cc6`, API on por
 | 5.3 | Incident status and response workflow | **PARTIAL** | Incidents carry a `status` field, but there is **no workflow**: no transitions, no assignment, no acknowledgement, no state history. |
 | 5.4 | Authorized notifications | **FUTURE** | **No notification is sent, simulated, or faked anywhere.** Alerts are labelled prototype-only and explicitly not Civil Protection. Correct as-is; must stay that way until an authority integrates. |
 
-## 6. PRODUCT & OPERATIONS — 4 verified, 1 partial
+## 6. PRODUCT & OPERATIONS — 5 verified, 0 partial
 
 | # | Item | Status | Evidence |
 |---|---|---|---|
-| 6.1 | English and Arabic interface | **PARTIAL** | `apps/web` has full EN/AR i18n including the `ar:` dictionary and RTL strings. `apps/site` is **English-only by explicit requirement** — no Arabic, no RTL toggle. Both are intentional; the item is met by `apps/web` only. |
+| 6.1 | English and Arabic interface | **VERIFIED** | `apps/atlas` ships a complete EN/AR interface: a 131-key dictionary with a compile-time guard that a missing Arabic key fails typecheck, a persisted language toggle, and Arabic wilaya search. Verified in a real browser (`apps/atlas/tools/ar-pass.mjs`), not only in jsdom — which is how two defects were caught that tests could not see: the attribution row welded its Arabic label to its English licence text, and `normalise()` folded every Arabic query to `""`, so the Arabic placeholder advertised a search that silently returned all 69 wilayas. `dir` is applied per panel, never to `<html>`: the map and the timeline stay LTR, because direction is inherited and a global flip would reverse the time axis. Strings the API returns (factor names, evidence, methodology, verifier scope) stay English inside `lang="en" dir="ltr"` spans — they are versioned pipeline output, not copy, and paraphrasing them would misstate them. 81 atlas tests. `apps/site` is **English-only by explicit requirement** — no Arabic, no RTL toggle. `apps/web` has its own EN/AR i18n. |
 | 6.2 | Responsive, polished competition-ready UI | **VERIFIED** | 5-stage chain rail, incident panel, 3-column console, deep-pine palette. 98 frontend tests, production build green. |
 | 6.3 | Backend/API health and truthful live/stale status | **VERIFIED** | `/health`, `/system/status`. Fail-closed verified from a clean clone. Truthful degradation on missing credential/artifact/database. |
 | 6.4 | Reliable startup instructions, reproducible setup | **VERIFIED** | `docs/SETUP.md`. Clean-clone script `scripts/verify_clean_clone.ps1` → **PASS**, twice, no leaked processes. |
-| 6.5 | Error handling, tests, security, deployment readiness | **PARTIAL** | 207 backend + 98 frontend tests. No secrets in Git (verified across every commit). **Gaps:** no CI pipeline, no deployment target defined, no monitoring, and `/ai` returns HTTP 500 on an uninitialised database (see below). |
+| 6.5 | Error handling, tests, security, deployment readiness | **PARTIAL** | 256 backend + 98 `apps/web` + 81 `apps/atlas` tests, plus the `apps/site` check suite. No secrets in Git (verified across every commit). **Gaps:** no CI pipeline, no deployment target defined, no monitoring, and `/ai` returns HTTP 500 on an uninitialised database (see below). |
 
 ---
 

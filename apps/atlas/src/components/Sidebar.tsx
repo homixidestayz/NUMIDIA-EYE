@@ -1,4 +1,5 @@
 import type { Incident, LayerState } from "../types";
+import { useI18n } from "../i18n";
 
 interface Props {
   layers: LayerState;
@@ -10,16 +11,20 @@ interface Props {
   open: boolean;
 }
 
-const LAYERS: { key: keyof LayerState; label: string; color: string }[] = [
-  { key: "wilayas", label: "Wilaya boundaries", color: "#1f7a58" },
-  { key: "detections", label: "Fire detections", color: "#e2571f" },
-  { key: "labels", label: "Wilaya labels", color: "#8fa79b" },
+const LAYERS: {
+  key: keyof LayerState;
+  label: "layerWilayas" | "layerDetections" | "layerLabels";
+  color: string;
+}[] = [
+  { key: "wilayas", label: "layerWilayas", color: "#1f7a58" },
+  { key: "detections", label: "layerDetections", color: "#e2571f" },
+  { key: "labels", label: "layerLabels", color: "#8fa79b" },
 ];
 
-const stamp = (iso: string) => {
+const stampBase = (iso: string, u: string) => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
-    ? "Unavailable"
+    ? u
     : d.toLocaleString("en-GB", {
         day: "2-digit",
         month: "short",
@@ -37,11 +42,13 @@ export default function Sidebar({
   loading,
   open,
 }: Props) {
+  const { t, dir } = useI18n();
+  const stamp = (iso: string) => stampBase(iso, t.unavailable);
   return (
-    <aside className={`left card${open ? " open" : ""}`}>
+    <aside dir={dir} className={`left card${open ? " open" : ""}`}>
       <div className="scroll">
         <section className="group g-fires">
-          <h2 className="group-h">Layers</h2>
+          <h2 className="group-h">{t.layers}</h2>
           <div className="layer-list">
             {LAYERS.map((l) => (
               <button
@@ -51,28 +58,23 @@ export default function Sidebar({
                 aria-pressed={layers[l.key]}
               >
                 <span className="box">{layers[l.key] ? "✓" : ""}</span>
-                <span className="lbl">{l.label}</span>
+                <span className="lbl">{t[l.label]}</span>
               </button>
             ))}
           </div>
         </section>
 
         <section className="group g-prio">
-          <h2 className="group-h">Incidents &amp; priority</h2>
-          <p className="lede">
-            Rule-based priority over grouped FIRMS detections. Not confirmed wildfires.
-          </p>
+          <h2 className="group-h">{t.incidents}</h2>
+          <p className="lede">{t.incidentsLede}</p>
 
           <div>
         {loading ? (
           /* An empty list here would read as "no incidents", which is a claim
              about Algeria rather than about our request. */
-          <p className="note">Grouping incidents… this takes a few seconds.</p>
+          <p className="note">{t.grouping}</p>
         ) : incidents.length === 0 ? (
-          <p className="note">
-            No incidents grouped from the stored detections. The pipeline is up but
-            nothing is stored yet — that is different from an absence of fires.
-          </p>
+          <p className="note">{t.noIncidents}</p>
         ) : (
           <ul className="inc-list">
             {incidents.map((inc) => {
@@ -88,14 +90,14 @@ export default function Sidebar({
                     aria-pressed={selectedIncidentId === inc.id}
                   >
                     <div className="inc-top">
-                      <span className={`badge ${level}`}>{p?.level ?? "Unavailable"}</span>
-                      <span className="score" title="rule-based priority score">
+                      <span className={`badge ${level}`}>{p?.level ?? t.unavailable}</span>
+                      <span className="score" title={t.priorityTitle}>
                         <i style={{ width: `${pct}%` }} />
-                        <b>{score === null ? "Unavailable" : score.toFixed(4)}</b>
+                        <b>{score === null ? t.unavailable : score.toFixed(4)}</b>
                       </span>
                     </div>
                     <div className="inc-title">
-                      <b>{inc.detection_count} detections</b>
+                      <b>{inc.detection_count} {t.detections}</b>
                       {inc.wilayas?.length ? (
                         <span className="wilas">{inc.wilayas.slice(0, 2).join(", ")}</span>
                       ) : null}

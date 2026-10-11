@@ -7,6 +7,7 @@ import Sidebar from "./components/Sidebar";
 import { wilayaCode } from "./geo";
 import { BUCKET_COLORS, bucketLabel } from "./fire";
 import { ATTRIBUTION } from "./attribution";
+import { useI18n } from "./i18n";
 import { FlameIcon } from "./components/FlameIcon";
 import { inRange, rangeStartUtc, type RangeId } from "./timeline";
 import MapView from "./components/MapView";
@@ -22,6 +23,7 @@ export const DEFAULT_LAYERS: LayerState = {
 export type EnvPhase = "idle" | "loading" | "ready" | "unavailable";
 
 export default function App() {
+  const { t, dir } = useI18n();
   const [world, setWorld] = useState<WorldCollection | null>(null);
   const [data, setData] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -234,9 +236,9 @@ export default function App() {
         <div className="mapctl">
           {(
             [
-              ["wilayas", "Wilayas"],
-              ["detections", "Fires"],
-              ["labels", "Labels"],
+              ["wilayas", t.mapWilayas],
+              ["detections", t.mapFires],
+              ["labels", t.mapLabels],
             ] as [keyof LayerState, string][]
           ).map(([key, label]) => (
             <button
@@ -254,9 +256,9 @@ export default function App() {
             <button
               className="mapbtn focus"
               onClick={() => focusWilaya(null)}
-              title="Clear the wilaya filter"
+              title={t.clearFilter}
             >
-              Filtered to{" "}
+              {t.filteredTo}{" "}
               <b>
                 {data?.wilayas.features.find((f) => wilayaCode(f) === focusedWilaya)
                   ?.properties.shapeName ?? focusedWilaya}
@@ -271,19 +273,18 @@ export default function App() {
             map; say what is actually true instead. */}
         {!loading && shown.length === 0 && detections.length > 0 && (
           <div className="mapempty" role="status">
-            <b>No detections in view</b>
+            <b>{t.noneInView}</b>
             <span>
               {focusedWilaya
-                ? `${focusedWilayaName ?? focusedWilaya} has none`
-                : "None"}{" "}
-              in the selected range. {detections.length.toLocaleString("en-GB")} are
-              loaded — widen the range to see them.
+                ? `${focusedWilayaName ?? focusedWilaya} ${t.hasNone}`
+                : t.noneWord}{" "}
+              {t.inRange} {detections.length.toLocaleString("en-GB")} {t.loadedWiden}
             </span>
           </div>
         )}
 
         <div className="legend">
-          <h3>Fire Radiative Power</h3>
+          <h3>{t.frpTitle}</h3>
           {BUCKET_COLORS.map((c, b) => (
             <div className="row" key={b}>
               <FlameIcon color={c} />
@@ -292,7 +293,7 @@ export default function App() {
           ))}
           <div className="row">
             <i className="sq" />
-            <span>Historical observation</span>
+            <span>{t.historicalObs}</span>
           </div>
         </div>
 
@@ -364,22 +365,24 @@ export default function App() {
         />
       )}
 
-      <div className="attrib" aria-label="Data attribution">
+      <div className="attrib" aria-label={t.attribLabel} dir={dir}>
         {ATTRIBUTION.map((c) => (
+          /* No dir override on the span: the row follows the page direction, and
+             the Arabic label orders correctly. Only the legal detail is pinned
+             to LTR — it is English, and a licence notice is not copy. */
           <span key={c.label} title={c.detail}>
-            <b>{c.label}</b>
-            {c.detail}
+            <b>{t[c.key]}</b>
+            <i aria-hidden="true">·</i>
+            <span lang="en" dir="ltr">{c.detail}</span>
           </span>
         ))}
-        <span className="indep">
-          Independent research prototype. Not affiliated with or endorsed by any government
-          body. Not a fire-spread model.
+        <span className="indep" dir={dir}>
+          {t.indep}
         </span>
       </div>
 
-      <footer className="foot">
-        Independent research prototype. Not affiliated with any government body. Not a
-        fire-spread model. Data: NASA FIRMS/VIIRS · Open-Meteo · GeoAlgeria (ODbL).
+      <footer className="foot" dir={dir}>
+        {t.footer}
       </footer>
 
       {searchOpen && (
@@ -395,9 +398,10 @@ export default function App() {
       )}
 
       {loadError && (
-        <div className="banner" role="alert">
-          <b>Cannot reach the API.</b> {loadError} — start it with
-          <code>uv run uvicorn numidia_api.app:app --port 8010</code> and reload.
+        <div className="banner" role="alert" dir={dir}>
+          <b>{t.apiDown}</b> {loadError} {t.apiDownHint}
+          {/* literal shell command, not prose */}
+          <code dir="ltr">uv run uvicorn numidia_api.app:app --port 8010</code> {t.apiDownTail}
         </div>
       )}
     </div>

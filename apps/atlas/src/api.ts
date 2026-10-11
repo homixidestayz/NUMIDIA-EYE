@@ -14,12 +14,18 @@ import type {
 const DEFAULT_PORT = 8010;
 
 function resolveApiBase(): string {
+  // 1. ?api=<port | url> in the page URL wins, for ad-hoc debugging.
   const q = new URLSearchParams(window.location.search).get("api");
   if (q) {
     return /^\d+$/.test(q)
       ? `${location.protocol}//${location.hostname || "127.0.0.1"}:${q}`
       : q;
   }
+  // 2. VITE_API_BASE, fixed at build time, for deployments where the API lives
+  //    on its own origin or behind a reverse proxy path such as "/api".
+  const built = import.meta.env.VITE_API_BASE as string | undefined;
+  if (built) return built.replace(/\/$/, "");
+  // 3. Local development: the API on this host, default port.
   return `${location.protocol}//${location.hostname || "127.0.0.1"}:${DEFAULT_PORT}`;
 }
 

@@ -48,7 +48,7 @@
   --header-h: 56px;
   --rail: 252px;
 
-  --font: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font: "Plus Jakarta Sans", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
@@ -85,15 +85,7 @@ kbd {
   border-bottom: 1px solid var(--line);
 }
 .brand { display: flex; align-items: center; gap: 10px; }
-.mark {
-  width: 24px; height: 24px; border-radius: 7px; flex: 0 0 auto;
-  background: linear-gradient(140deg, var(--brand), #15803d);
-  position: relative;
-}
-.mark::after {
-  content: ""; position: absolute; inset: 8px;
-  border-radius: 50%; background: #fff;
-}
+.mark { flex: 0 0 auto; color: var(--ink-2); }
 .brandtext h1 {
   margin: 0; font-size: 14px; font-weight: 700; letter-spacing: -0.2px;
 }
@@ -411,8 +403,11 @@ kbd {
   display: flex; flex-wrap: wrap; gap: 4px 14px; max-width: 62%;
   font-size: 9px; color: var(--ink-4); line-height: 1.5;
 }
-.attrib span { display: inline-flex; gap: 5px; }
+.attrib > span { display: inline-flex; gap: 5px; align-items: baseline; }
 .attrib b { color: var(--ink-3); font-weight: 600; }
+.attrib i { font-style: normal; opacity: .5; }
+/* The legal detail is a single unbreakable run, not a flex item that stretches. */
+.attrib > span > span { display: inline; }
 .attrib .indep { color: var(--ink-4); opacity: .85; }
 
 .scrim { display: none; }
@@ -462,3 +457,39 @@ kbd {
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); border-radius: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* ── language + RTL ──────────────────────────────────────────
+   `dir` is applied per panel by the components, never to <html>: direction is
+   inherited, so a global flip would reverse the map and the timeline too, and a
+   reversed time axis would misstate the data. <html> carries `lang` only. */
+.lang-btn { font-weight: 600; min-width: 64px; }
+.lang-btn:lang(ar) { font-family: "IBM Plex Sans Arabic", var(--font); }
+
+.topbar[dir="rtl"],
+.left[dir="rtl"],
+.right[dir="rtl"],
+.search-box[dir="rtl"],
+.foot[dir="rtl"],
+.indep[dir="rtl"],
+.banner[dir="rtl"] {
+  font-family: "IBM Plex Sans Arabic", var(--font);
+}
+[dir="rtl"] .layer,
+[dir="rtl"] .search-item { text-align: start; }
+[dir="rtl"] .inc-title .wilas { text-align: start; }
+
+/* Latin fragments inside an Arabic panel keep their own direction where the JSX
+   pins them (coordinates, API strings). Everything else follows the panel: a
+   blanket `direction: ltr` here would misalign the Arabic values. */
+[dir="rtl"] .kv span { text-align: end; }
+
+/* ── focus visibility ──────────────────────────────────────── */
+:where(button, a, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--fire);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (max-width: 760px) {
+  .lang-btn { min-width: 0; padding-inline: 10px; }
+}

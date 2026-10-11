@@ -7,23 +7,31 @@
  * outline is local GeoJSON.
  */
 
+import type { Dict } from "./i18n";
+
 export interface Credit {
+  /** English label, kept for provenance records and tests. */
   label: string;
+  /** Dictionary key for the UI-visible label. */
+  key: keyof Dict;
+  /** Legal text. Never translated — a licence notice is not copy. */
   detail: string;
 }
 
 export const ATTRIBUTION: Credit[] = [
-  { label: "Fire detections", detail: "NASA FIRMS / VIIRS" },
+  { label: "Fire detections", key: "attrDetections", detail: "NASA FIRMS / VIIRS" },
   {
     label: "Wilaya boundaries",
+    key: "attrBoundaries",
     detail: "© OpenStreetMap contributors · ODbL 1.0, via the GeoAlgeria dataset",
   },
   {
     label: "World outlines",
+    key: "attrWorld",
     detail: "Natural Earth 110m Admin-0, public domain",
   },
-  { label: "Weather", detail: "Open-Meteo" },
-  { label: "Map renderer", detail: "MapLibre GL JS" },
+  { label: "Weather", key: "attrWeather", detail: "Open-Meteo" },
+  { label: "Map renderer", key: "attrRenderer", detail: "MapLibre GL JS" },
 ];
 
 /** One-line form, for the map's compact attribution control. */

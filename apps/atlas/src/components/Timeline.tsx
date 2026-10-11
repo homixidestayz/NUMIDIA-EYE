@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useI18n } from "../i18n";
 import {
   RANGES,
   bucketByHour,
@@ -46,6 +47,15 @@ export default function Timeline({
   loading,
   onMapCount,
 }: Props) {
+  const { t } = useI18n();
+  /* Range labels are localised, but the section itself stays left-to-right:
+     a time axis that reversed under the reader would misstate the data. */
+  const rangeText: Record<string, { label: string; title: string }> = {
+    today: { label: t.rngToday, title: t.rngTodayTitle },
+    "24h": { label: t.rng24h, title: t.rng24hTitle },
+    "7d": { label: t.rng7d, title: t.rng7dTitle },
+    all: { label: t.rngAll, title: t.rngAllTitle },
+  };
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState<null | "start" | "end" | "pan">(null);
   const dragRef = useRef<{ mode: string; grabOffset: number } | null>(null);
@@ -158,16 +168,16 @@ export default function Timeline({
     const s = rangeStartUtc(id, spanEnd, spanStart, spanEnd);
     if (!s) return null;
     if (s.getTime() >= spanStart.getTime()) return null;
-    return `Only ${humanSpan(heldFor)} of detections are loaded, so this range would show the same points.`;
+    return `${t.tlOnlyPre} ${humanSpan(heldFor)} ${t.tlOnlyPost}`;
   };
 
   const leftPct = spanToX(from.getTime());
   const rightPct = spanToX(to.getTime());
 
   return (
-    <section className="tl" aria-label="Timeline">
+    <section className="tl" aria-label={t.tlLabel}>
       <div className="tl-head">
-        <div className="tl-ranges" role="group" aria-label="Time range">
+        <div className="tl-ranges" role="group" aria-label={t.tlRange}>
           {RANGES.map((r) => {
             const why = unavailable(r.id);
             return (
@@ -176,22 +186,22 @@ export default function Timeline({
                 className="tl-pill"
                 aria-pressed={range === r.id}
                 disabled={Boolean(why)}
-                title={why ?? r.title}
+                title={why ?? rangeText[r.id].title}
                 onClick={() => pick(r.id)}
               >
-                {r.label}
+                {rangeText[r.id].label}
               </button>
             );
           })}
           <button
             className="tl-pill tl-play"
             aria-pressed={atReplayEnd}
-            title="Replay recorded detections through time. This is playback of stored data, not a forecast."
+            title={t.tlReplayTitle}
             onClick={() =>
               onReplayTick(atReplayEnd ? null : replayFrom.getTime())
             }
           >
-            {atReplayEnd ? "❚❚ Stop" : "▶ Replay"}
+            {atReplayEnd ? t.tlStop : t.tlReplay}
           </button>
         </div>
 
@@ -199,17 +209,17 @@ export default function Timeline({
           {/* Two counts, because they differ whenever a wilaya filter is on and
               showing one number contradicted the header. */}
           <b>
-            {onMapCount.toLocaleString("en-GB")} on map
+            {onMapCount.toLocaleString("en-GB")} {t.tlOnMap}
           </b>
           <span>
-            {visible.length.toLocaleString("en-GB")} in range
+            {visible.length.toLocaleString("en-GB")} {t.tlInRange}
           </span>
           <span>
-            {loading ? "Loading…" : `${formatLocalDay(from)} ${formatLocalClock(from)} → ${formatLocalClock(to)}`}
+            {loading ? t.loading : `${formatLocalDay(from)} ${formatLocalClock(from)} → ${formatLocalClock(to)}`}
           </span>
           <span className="tl-span">
-            {humanSpan(to.getTime() - from.getTime())} shown ·{" "}
-            {humanSpan(heldFor)} loaded
+            {humanSpan(to.getTime() - from.getTime())} {t.tlShown} ·{" "}
+            {humanSpan(heldFor)} {t.tlLoaded}
           </span>
         </div>
       </div>
@@ -226,7 +236,7 @@ export default function Timeline({
               <i
                 key={b.t.toISOString()}
                 className={inWin ? "in" : ""}
-                title={`${b.count} detection${b.count === 1 ? "" : "s"} at ${formatLocalClock(b.t)}`}
+                title={`${b.count} ${b.count === 1 ? t.tlBarOne : t.tlBarMany} ${t.tlAt} ${formatLocalClock(b.t)}`}
                 style={{
                   left: `${x}%`,
                   /* Cap the width so a dozen hourly buckets reads as a
@@ -246,18 +256,18 @@ export default function Timeline({
         >
           <button
             className="tl-handle l"
-            aria-label="Move window start"
+            aria-label={t.moveStart}
             onPointerDown={(e) => startDrag("start", e)}
           />
           <button
             className="tl-handle r"
-            aria-label="Move window end"
+            aria-label={t.moveEnd}
             onPointerDown={(e) => startDrag("end", e)}
           />
         </div>
         <button
           className="tl-pan"
-          aria-label="Pan the time window"
+          aria-label={t.panWindow}
           onPointerDown={(e) => {
             const el = trackRef.current;
             if (!el) return;
@@ -273,10 +283,7 @@ export default function Timeline({
         )}
       </div>
 
-      <p className="tl-foot">
-        Replay steps through recorded detections. Times are Algeria local (UTC+1). Not a
-        fire-spread model and not a forecast.
-      </p>
+      <p className="tl-foot">{t.tlFoot}</p>
     </section>
   );
 }

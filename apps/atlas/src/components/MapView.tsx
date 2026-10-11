@@ -4,6 +4,7 @@ import type { Detection, WilayaCollection, WorldCollection } from "../types";
 import type { LayerState } from "../types";
 import { anchorOf, areaOf, boundsOf, wilayaCode } from "../geo";
 import { BUCKET_COUNT, bucketFor, flameImageData, matchExpression } from "../fire";
+import { useI18n } from "../i18n";
 
 export { anchorOf, exteriorRing, wilayaCode } from "../geo";
 
@@ -52,6 +53,7 @@ export default function MapView({
   onFocusWilaya,
   onSelectDetection,
 }: Props) {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
@@ -207,7 +209,7 @@ export default function MapView({
           lat: coords[1],
           lon: coords[0],
           acq_datetime: String(p.acq_datetime ?? ""),
-          satellite: String(p.satellite ?? "Unavailable"),
+          satellite: String(p.satellite ?? ""),
           instrument: "",
           confidence: num(p.confidence),
           confidence_raw: str(p.confidence_raw),
@@ -471,16 +473,16 @@ export default function MapView({
           on this map" without needing devtools. */}
       <div className="mapstat">
         {error
-          ? "failed"
+          ? t.mapFailed
           : !ready
-            ? "starting map…"
+            ? t.mapStarting
             : painted === 0
-              ? `loading ${wilayas?.features.length ?? 0} wilayas…`
-              : `${painted} features drawn · ${wilayas?.features.length ?? 0} wilayas · ${detections.length} detections`}
+              ? `${t.mapLoading} ${wilayas?.features.length ?? 0} ${t.statWilayas}…`
+              : `${painted} ${t.mapDrawn} · ${wilayas?.features.length ?? 0} ${t.statWilayas} · ${detections.length} ${t.detections}`}
       </div>
       {error && (
         <div className="mapfail" role="alert">
-          <b>Map unavailable.</b> {error}
+          <b>{t.mapUnavailable}</b> <span lang="en" dir="ltr">{error}</span>
         </div>
       )}
     </>

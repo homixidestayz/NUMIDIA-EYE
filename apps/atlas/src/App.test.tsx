@@ -178,11 +178,25 @@ describe("no clustering: one mark per detection", () => {
   }
 
   const detPush = async (): Promise<Pushed> => {
-    // The stub fires "load" on a timer, so the header can render before the map
-    // has pushed anything. Waiting on the header made these tests flaky.
+    // The default range is TODAY, which is the Algerian civil day. The
+    // fixtures were captured on 2026-10-09/10, so once the wall clock passed
+    // midnight local they fell outside "today" and the source legitimately
+    // pushed nothing. Select ALL first — these assertions are about the shape
+    // of the data, not about which day it fell on.
+    const all = [...document.querySelectorAll(".tl-pill")].find((b) =>
+      /^(All|الكل)$/.test(b.textContent?.trim() ?? ""),
+    );
+    if (all) fireEvent.click(all);
+
     await waitFor(() =>
       expect(setDataCalls.some((x) => x.id === "detections")).toBe(true),
     );
+    // Wait for a push that actually has features, not merely a call.
+    await waitFor(() => {
+      const c = [...setDataCalls].reverse().find((x) => x.id === "detections");
+      const f = (c as unknown as Pushed | undefined)?.data.features;
+      expect(f?.length ?? 0).toBeGreaterThan(0);
+    });
     const c = [...setDataCalls].reverse().find((x) => x.id === "detections");
     if (!c) throw new Error("detections source never received data");
     return c as unknown as Pushed;
