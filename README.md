@@ -21,8 +21,8 @@
 NASA FIRMS NRT API (server-side key) or public archive (no key)
         │  scheduled fetch (API service, default every 30 min) or worker CLI
         ▼
-normalize → validate → feature extraction (7 real features)
-        │  GIS enrichment (wilaya point-in-polygon, 48 units)
+normalize → validate → feature extraction (10 real features)
+        │  GIS enrichment (wilaya point-in-polygon, 69 units)
         ▼
 application database (SQLite WAL): detections + ingest_runs
         │  freshness enforced: LIVE requires fresh acquisition AND fresh run
@@ -36,7 +36,7 @@ fire / non-fire / uncertain → incidents → reports → prototype alerts
 | Layer | State |
 |---|---|
 | Real satellite ingestion (FIRMS NRT API + archive backfill) | ✅ `numidia_core` + `numidia_worker`, provenance + key redaction. The public archive route needs no API key. |
-| Processing + GIS enrichment | ✅ 7 features + wilaya assignment, stored per detection |
+| Processing + GIS enrichment | ✅ 10 features + wilaya assignment, stored per detection |
 | Application database + freshness | ✅ SQLite; LIVE / HISTORICAL / **STALE** / UNAVAILABLE enforced |
 | API boundary | ✅ detections / status / provenance / incidents; `/ai` explicit `UNAVAILABLE` only when no artifact is registered |
 | Dashboard scaffold (React + TS + maplibre, EN/العربية) | ✅ written; 98 tests, production build green |
@@ -102,7 +102,7 @@ tests. `data/raw/firms/` holds gitignored audit snapshots; nothing under
 |---|---|---|
 | NASA FIRMS NRT Area API (`VIIRS_*_NRT`, Algeria bbox) | live source of truth | open; attribution to NASA FIRMS required |
 | NASA FIRMS public archives (`*_C2_Global_24h`) | keyless route, backfill, testing | open; attribution required |
-| geoBoundaries Algeria ADM1 (48 units, bundled) | wilaya GIS enrichment | check upstream terms before redistribution |
+| geoBoundaries Algeria ADM1 (69 units, bundled) | wilaya GIS enrichment | check upstream terms before redistribution |
 | Copernicus EMS Rapid Mapping (EMSR533) + EFFIS | verifier positive ground truth | EU open data; attribution required |
 | EOG VIIRS Nightfire annual flare files 2020-2024 | verifier negative ground truth | **licence position unresolved** — see `MODEL_LICENSE.md` |
 
