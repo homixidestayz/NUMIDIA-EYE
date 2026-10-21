@@ -63,7 +63,7 @@ const T = {
   acq: "acquired", sat: "Satellite", frp: "FRP", conf: "FIRMS confidence",
   ti4: "Brightness TI4 (K)", ti5: "Brightness TI5 (K)",
   aiVerify: "Run AI verification", aiVerifying: "Verifying…",
-  aiRes: "AI verification", aiExp: "Experimental prototype",
+  aiRes: "AI verification", aiExp: "Live",
   aiModel: "Model", aiResult: "Result", aiProb: "Probability", aiThr: "Threshold",
   aiSchema: "Feature schema",
   aiScope: "Experimental structured satellite-data verifier. Not a validated Algerian wildfire detector: the training labels contain no independently confirmed southern Algerian wildfire positive, and the negative class is predominantly catalogued gas flare.",

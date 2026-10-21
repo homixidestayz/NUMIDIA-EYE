@@ -327,7 +327,7 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
         # The AI sentence must follow verification_status, not a hardcoded assumption,
         # otherwise a registered model is still announced as unavailable.
         if verify["status"] == "available":
-            message += (f" AI verifier {verify['model']} serving experimental "
+            message += (f" AI verifier {verify['model']} serving "
                         f"{verify.get('schema_version')} structured-data verdicts "
                         f"(threshold {verify.get('threshold')}). Alerts are "
                         f"PROTOTYPE ONLY - not Civil Protection.")
