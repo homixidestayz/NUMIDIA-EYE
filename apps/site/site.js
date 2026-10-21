@@ -577,7 +577,8 @@ function wilayaBounds() {
   // Fit to the bundled boundaries, not a hand-tuned constant.
   let w = 180, s = 90, e = -180, n = -90;
   for (const f of S.wilayas) {
-    const ring = f.geometry.coordinates[0];
+    const ring = exteriorRing(f.geometry);
+    if (!ring) continue;
     for (const [lon, lat] of ring) {
       if (lon < w) w = lon; if (lon > e) e = lon;
       if (lat < s) s = lat; if (lat > n) n = lat;
@@ -828,13 +829,15 @@ function focusWilaya(code) {
   S.expanded = null;
   const w = S.wilaya ? S.wilayaByCode[String(S.wilaya)] : null;
   if (w) {
-    const ring = w.geometry.coordinates[0];
+    const ring = exteriorRing(w.geometry);
+    if (ring) {
     let wst = 180, s = 90, e = -180, n = -90;
     for (const [lon, lat] of ring) {
       if (lon < wst) wst = lon; if (lon > e) e = lon;
       if (lat < s) s = lat; if (lat > n) n = lat;
     }
     map.fitBounds([[wst, s], [e, n]], { padding: 60, maxZoom: 8, duration: 700 });
+    }
   }
   pushWilayas(); pushDetections(); syncAllLabels();
   renderWilaya(); renderStats(); renderChain(); renderIncidents();
