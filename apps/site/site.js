@@ -1040,6 +1040,17 @@ async function selectDetection(id) {
     S.detailPhase = "error";
   }
   renderDetail(); renderAi(); renderChain();
+  if (S.detailPhase === "ready" && S.detail) {
+    // The AI tells about every fire: verify automatically on select, no
+    // extra tap. The button stays for manual re-verify.
+    runVerify();
+    // On phones the detail panel sits below the map; bring it into view
+    // so tapping a fire actually shows its information.
+    if (window.matchMedia("(max-width: 768px)").matches) {
+      const slot = document.getElementById("detail-slot");
+      if (slot && slot.firstElementChild) slot.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
 }
 
 async function runVerify() {
