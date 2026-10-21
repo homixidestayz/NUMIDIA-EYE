@@ -27,6 +27,9 @@ COPY deploy/server.py /app/server.py
 ENV NUMIDIA_REPO=/app/repo \
     NUMIDIA_ACTIVE_MODEL=/app/repo/services/ml/models/verifier_v2 \
     NUMIDIA_DB_PATH=/app/repo/data/db/numidia.db
+# The model MUST ship inside the image (see NUMIDIA_ACTIVE_MODEL above):
+# a buildpack-style deploy that skips this Dockerfile leaves the variable
+# unset and /ai fails closed with 503 AI_UNAVAILABLE.
 
 EXPOSE 8000
 CMD ["sh", "-c", "uvicorn --app-dir /app server:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
