@@ -1,0 +1,21 @@
+# This file lives at the REPO ROOT (Blueprint auto-discovery reads the root
+# copy only). Deploy package: deploy/Dockerfile + deploy/server.py,
+# built with the repo root as docker context (see dockerfilePath).
+services:
+  - type: web
+    name: numidia-eye
+    runtime: docker
+    dockerContext: .
+    dockerfilePath: ./deploy/Dockerfile
+    plan: free
+    healthCheckPath: /system/status
+    envVars:
+      - key: NUMIDIA_ACTIVE_MODEL
+        value: /app/repo/services/ml/models/verifier_v2
+      - key: NUMIDIA_DISABLE_SCHEDULER
+        value: "false"
+      - key: FIRMS_MAP_KEY
+        sync: false
+      # FIRMS_MAP_KEY is prompted as a secret during Blueprint apply.
+      # Without it the app serves the bundled snapshot and labels data
+      # STALE (honest) instead of ingesting live.
