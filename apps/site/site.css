@@ -217,6 +217,7 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 700; }
 .panel-title { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.7px; color: var(--sand); }
 .pill { font-size: 10px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border-2);
   color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pill.live { color: var(--live); border-color: var(--live); }
 .note { margin: 0; font-size: 10.5px; line-height: 1.55; color: var(--muted); }
 .note.strong { color: var(--sand); } .note.warn { color: var(--warn); }
 .rulebox { font-size: 10px; line-height: 1.5; color: var(--muted); background: var(--bg);

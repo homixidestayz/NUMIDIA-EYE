@@ -508,24 +508,34 @@ function renderReport() {
 /* ---------------------------------------------------------------- detail + ai */
 function renderDetail() {
   const slot = document.getElementById("detail-slot");
-  if (S.detailPhase === "loading") { slot.innerHTML = `<div class="card"><p class="note">${esc(T.loading)}</p></div>`; return; }
+  if (S.detailPhase === "loading") {
+    slot.innerHTML = `<section class="panel"><p class="note">${esc(T.loading)}</p></section>`;
+    return;
+  }
   if (S.detailPhase !== "ready" || !S.detail) { slot.innerHTML = ""; return; }
   const d = S.detail;
   const live = d.state === "LIVE";
   const conf = d.confidence == null ? T.unavailable
-    : `${Math.round(d.confidence * 100)}%${d.confidence_raw ? ` (${d.confidence_raw})` : ""}`;
-  const grp = (l, h, b) => `<div class="f"><div class="f-h"><span class="f-l">${esc(l)}</span><span class="f-x">${esc(h)}</span></div><div class="f-b">${b}</div></div>`;
-  const kv = (l, v) => `<span class="kv"><em>${esc(l)}</em><span>${esc(v)}</span></span>`;
-  slot.innerHTML = `<div class="card">
-    ${grp(T.what, T.detState, `<span class="${live ? "live-tag" : ""}">${esc(live ? T.live : (d.state || T.unavailable))}</span>`)}
-    ${grp(T.where, T.wilaya, `${esc(orUn(d.wilaya_name))}${kv(T.lat, numOr(d.lat))}${kv(T.lon, numOr(d.lon))}`)}
-    ${grp(T.when, T.acq, esc(fmt(d.acq_datetime)))}
-    ${grp(T.source, T.source, `${esc(orUn(d.source))}${kv(T.sat, orUn(d.satellite))}`)}
-    ${grp(T.signal, T.frp,
-      `${typeof d.frp === "number" ? d.frp.toFixed(1) + " MW" : esc(T.unavailable)}
-       ${kv(T.conf, conf)}${kv(T.ti4, numOr(d.bright_ti4))}${kv(T.ti5, numOr(d.bright_ti5))}`)}
-    <div class="pid">${esc(d.detection_id)}</div>
-  </div>`;
+    : `${Math.round(d.confidence * 100)}%`;
+  const t4 = typeof d.bright_ti4 === "number" ? `${d.bright_ti4.toFixed(0)} K` : T.unavailable;
+  const cell = (v, l) => `<div class="wil-cell"><b>${v}</b><span>${esc(l)}</span></div>`;
+  slot.innerHTML = `<section class="panel">
+    <div class="panel-head">
+      <span class="panel-title">${esc(T.det)}</span>
+      <span class="pill${live ? " live" : ""}">${esc(live ? `\u25cf ${T.live}` : (d.state || T.unavailable))}</span>
+    </div>
+    <div class="wil-hero">
+      <span class="wil-name">${esc(orUn(d.wilaya_name))}</span>
+      <span class="wil-meta">${esc(fmt(d.acq_datetime))} \u00b7 ${esc(orUn(d.source))} \u00b7 ${esc(orUn(d.satellite))}</span>
+      <div class="wil-grid">
+        ${cell(typeof d.frp === "number" ? `${d.frp.toFixed(1)} MW` : esc(T.unavailable), T.frp)}
+        ${cell(esc(conf), T.conf)}
+        ${cell(`${esc(numOr(d.lat))}, ${esc(numOr(d.lon))}`, `${T.lat} / ${T.lon}`)}
+        ${cell(esc(t4), "T4")}
+      </div>
+      <div class="pid">${esc(d.detection_id)}</div>
+    </div>
+  </section>`;
 }
 
 function renderAi() {
@@ -737,32 +747,45 @@ function initMap() {
         "circle-stroke-color": "#080f0d", "circle-stroke-width": 1.5 } });
     map.addLayer({ id: "cluc", type: "circle", source: "detections", filter: ["has", "point_count"],
       paint: { "circle-opacity": 0 } });
+    /* Fire dots glow orange: a blurred halo under a crisp core, so every
+       detection reads clearly on a phone screen. Core size still encodes FRP. */
+    const GLOW = "#ff8c1a";
+    const CORE_R = ["interpolate", ["linear"], ["get", "frp"],
+      0, 7, 10, 7, 100, 9, 500, 12, 2000, 17];
+    const CORE_C = ["interpolate", ["linear"], ["get", "frp"],
+      0, "#d9a441", 100, "#e08b3d", 500, "#e5484d"];
+    const CORE_S = "rgba(255,255,255,0.9)";
+    map.addLayer({ id: "hist-glow", type: "circle", source: "detections",
+      filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "state"], "HISTORICAL"]],
+      paint: {
+        "circle-color": GLOW,
+        "circle-radius": ["interpolate", ["linear"], ["get", "frp"],
+          0, 13, 100, 17, 500, 22, 2000, 30],
+        "circle-opacity": 0.16, "circle-blur": 0.7,
+      } });
     map.addLayer({ id: "hist", type: "circle", source: "detections",
       filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "state"], "HISTORICAL"]],
       paint: {
-        "circle-color": ["interpolate", ["linear"], ["get", "frp"],
-          0, "#d9a441", 100, "#e08b3d", 500, "#e5484d"],
-        "circle-radius": ["interpolate", ["linear"], ["get", "frp"],
-          0, 4, 10, 4, 100, 6, 500, 9, 2000, 13],
-        "circle-opacity": 0.85,
+        "circle-color": CORE_C,
+        "circle-radius": CORE_R,
+        "circle-opacity": 0.92,
+        "circle-stroke-color": CORE_S, "circle-stroke-width": 1,
       } });
     map.addLayer({ id: "live-glow", type: "circle", source: "detections",
       filter: ["all", ["!", ["has", "point_count"]], ["!=", ["get", "state"], "HISTORICAL"]],
       paint: {
-        "circle-color": "#e5484d",
+        "circle-color": GLOW,
         "circle-radius": ["interpolate", ["linear"], ["get", "frp"],
-          0, 10, 10, 10, 100, 14, 500, 18, 2000, 24],
-        "circle-opacity": 0.14,
-        "circle-blur": 0.6,
+          0, 14, 100, 19, 500, 25, 2000, 34],
+        "circle-opacity": 0.32,
+        "circle-blur": 0.7,
       } });
     map.addLayer({ id: "live", type: "circle", source: "detections",
       filter: ["all", ["!", ["has", "point_count"]], ["!=", ["get", "state"], "HISTORICAL"]],
       paint: {
-        "circle-color": ["interpolate", ["linear"], ["get", "frp"],
-          0, "#d9a441", 100, "#e08b3d", 500, "#e5484d"],
-        "circle-radius": ["interpolate", ["linear"], ["get", "frp"],
-          0, 4, 10, 4, 100, 6, 500, 9, 2000, 13],
-        "circle-stroke-color": "#080f0d", "circle-stroke-width": 0.8,
+        "circle-color": CORE_C,
+        "circle-radius": CORE_R,
+        "circle-stroke-color": CORE_S, "circle-stroke-width": 1.2,
       } });
     map.addLayer({ id: "sel", type: "circle", source: "detections", filter: ["==", ["get", "sel"], true],
       paint: { "circle-color": "#6fb3d9", "circle-radius": 9.5, "circle-stroke-color": "#080f0d", "circle-stroke-width": 3 } });
