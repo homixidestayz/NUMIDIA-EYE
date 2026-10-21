@@ -1,12 +1,12 @@
 # This file lives at the REPO ROOT (Blueprint auto-discovery reads the root
-# copy only). Deploy package: deploy/Dockerfile + deploy/server.py,
+# copy only). Deploy package: Dockerfile + deploy/server.py,
 # built with the repo root as docker context (see dockerfilePath).
 services:
   - type: web
     name: numidia-eye
     runtime: docker
     dockerContext: .
-    dockerfilePath: ./deploy/Dockerfile
+    dockerfilePath: ./Dockerfile
     plan: free
     healthCheckPath: /system/status
     envVars:

@@ -1,13 +1,13 @@
 # The live Blueprint entrypoint is the render.yaml at the REPO ROOT
 # (Blueprint auto-discovery only reads the root copy — render.com/docs/blueprint-spec).
 # This copy under deploy/ is a backup. The other files live at:
-#   deploy/Dockerfile, deploy/server.py (docker context = repo root).
+#   Dockerfile, deploy/server.py (docker context = repo root).
 services:
   - type: web
     name: numidia-eye
     runtime: docker
     dockerContext: .
-    dockerfilePath: ./deploy/Dockerfile
+    dockerfilePath: ./Dockerfile
     plan: free
     healthCheckPath: /system/status
     envVars:
