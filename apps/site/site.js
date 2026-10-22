@@ -575,23 +575,57 @@ const UI_T = {
     foot: "عين نوميديا — بيانات ناسا FIRMS مباشرة، مُتحقق منها بالذكاء الاصطناعي. نموذج أولي، وليس نظام إنذار رسمي.",
     toggle: "EN",
     search: "ابحث عن الولايات…",
+    det: "كشوفات",
+    incN: "حوادث",
+    live: "مباشر",
+    sats: "أقمار صناعية",
+    withData: "مع كشوفات",
+    focus: "مُركّز",
+    reset: "عرض كل الولايات",
+    clickWilaya: "اضغط على ولاية في الخريطة لتركيزها.",
+    loading: "جار التحميل…",
+    unavailable: "غير متوفر",
+    frp: "القدرة الإشعاعية",
+    conf: "ثقة FIRMS",
+    wilaya: "الولاية",
+    acq: "التقطت",
+    sat: "القمر",
+    aiVerify: "تشغيل التحقق بالذكاء الاصطناعي",
+    aiRes: "التحقق بالذكاء الاصطناعي",
+    aiModel: "النموذج",
+    aiResult: "النتيجة",
+    envTitle: "البيئة عند الحادث",
+    envNone: "اختر حادثًا لتحميل السياق البيئي المباشر.",
+    envTemp: "الحرارة",
+    envRh: "الرطوبة",
+    envWind: "الرياح",
+    envGust: "الهبات",
+    envUnavailable: "السياق البيئي غير متوفر",
   },
 };
 
 /* Apply UI_LANG to all translatable elements + set AI_LANG + RTL. */
+/* Snapshot of original English strings for language switching. */
+const T_EN = Object.assign({}, T);
 function applyLang() {
-  const T = UI_T[UI_LANG] || UI_T.en;
+  const UT = UI_T[UI_LANG] || UI_T.en;
+  /* Reset to English, then merge Arabic overrides if needed. */
+  Object.assign(T, T_EN);
+  if (UI_LANG === "ar" && UI_T.ar) {
+    Object.assign(T, UI_T.ar);
+  }
+  const T2 = UT;
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  set("t-title", T.title);
-  set("t-sub", T.sub);
-  set("t-indep", T.indep);
-  set("t-wil", T.wil);
-  set("t-inc", T.inc);
-  set("t-env", T.env);
-  set("t-src", T.src);
-  set("t-foot", T.foot);
+  set("t-title", T2.title);
+  set("t-sub", T2.sub);
+  set("t-indep", T2.indep);
+  set("t-wil", T2.wil);
+  set("t-inc", T2.inc);
+  set("t-env", T2.env);
+  set("t-src", T2.src);
+  set("t-foot", T2.foot);
   const btn = document.getElementById("lang-toggle");
-  if (btn) btn.textContent = T.toggle;
+  if (btn) btn.textContent = T2.toggle;
   document.documentElement.lang = UI_LANG === "ar" ? "ar" : "en";
   document.documentElement.dir = UI_LANG === "ar" ? "rtl" : "ltr";
   AI_LANG = UI_LANG;
