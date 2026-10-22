@@ -1073,7 +1073,7 @@ function initMap() {
        is drawn as local DOM markers instead — crisper, and still offline. */
 
     map.addSource("detections", { type: "geojson", data: EMPTY,
-      cluster: false });
+      cluster: true, clusterMaxZoom: 12, clusterRadius: 50 });
     map.addLayer({ id: "clu", type: "circle", source: "detections", filter: ["has", "point_count"],
       paint: { "circle-color": "#2f7fb8", "circle-radius": ["step", ["get", "point_count"], 14, 25, 18, 100, 22],
         "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.5 } });
@@ -1129,25 +1129,14 @@ function initMap() {
     }
     map.on("mousemove", "wil-fill", (e) => setWilayaFlags(wilayaCodeAt(e.features[0].properties), "hover"));
     map.on("click", "wil-fill", (e) => focusWilaya(wilayaCodeAt(e.features[0].properties)));
+    /* Cluster tap: zoom in to expand. Dead simple — just zoom, the
+       cluster will naturally break apart at higher zoom levels. */
     map.on("click", "clu", (e) => {
-      try {
-        const f = e.features && e.features[0];
-        if (!f || !f.properties) return;
-        const src = map.getSource("detections");
-        if (!src || !src.getClusterExpansionZoom) return;
-        const cid = f.properties.cluster_id;
-        if (cid == null) return;
-        /* Simple and robust: zoom to the cluster's expansion level.
-           With clusterMaxZoom 14 and radius 35, this reliably breaks
-           clusters into individual dots. */
-        src.getClusterExpansionZoom(cid, (err, z) => {
-          if (!err && typeof z === "number") {
-            map.easeTo({ center: f.geometry.coordinates, zoom: Math.min(z + 1, 16), duration: 600 });
-          }
-        });
-      } catch (err) {
-        /* Silently ignore tap errors — never break the map. */
-      }
+      if (!e.features || !e.features[0]) return;
+      const coords = e.features[0].geometry.coordinates;
+      const currentZoom = map.getZoom();
+      // Zoom in by 2 levels, centered on the cluster
+      map.easeTo({ center: coords, zoom: Math.min(currentZoom + 2, 16), duration: 500 });
     });
     for (const l of ["live", "hist"]) {
       map.on("click", l, (e) => selectDetection(e.features[0].properties.id));
