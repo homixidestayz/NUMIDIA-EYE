@@ -973,7 +973,7 @@ function initMap() {
        is drawn as local DOM markers instead — crisper, and still offline. */
 
     map.addSource("detections", { type: "geojson", data: EMPTY,
-      cluster: true, clusterMaxZoom: 11, clusterRadius: 45 });
+      cluster: true, clusterMaxZoom: 14, clusterRadius: 35 });
     map.addLayer({ id: "clu", type: "circle", source: "detections", filter: ["has", "point_count"],
       paint: { "circle-color": "#2f7fb8", "circle-radius": ["step", ["get", "point_count"], 12, 25, 16, 100, 20],
         "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.5 } });
@@ -1052,9 +1052,9 @@ function initMap() {
           const span = Math.max(Math.max(...lons) - Math.min(...lons),
                                 Math.max(...lats) - Math.min(...lats));
           if (span < 0.01) {
-            map.easeTo({ center: f.geometry.coordinates, zoom: Math.min(map.getZoom() + 3, 14) });
+            map.easeTo({ center: f.geometry.coordinates, zoom: 16 });
           } else {
-            map.fitBounds(bounds, { padding: 60, maxZoom: 14 });
+            map.fitBounds(bounds, { padding: 60, maxZoom: 16 });
           }
         });
     });
