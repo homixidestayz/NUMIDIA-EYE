@@ -32,13 +32,22 @@ const API = resolveApiBase();
 const DET_LIMIT = 500;
 const EMPTY = { type: "FeatureCollection", features: [] };
 
-/* Blank style: one background layer, no sources. Everything drawn on top is
-   our own data, so nothing outside Algeria can ever appear. */
-const BLANK_STYLE = {
+/* Light civic basemap: CartoDB Positron (© OpenStreetMap contributors © CARTO).
+   The project's own wilaya boundaries draw on top, so Algeria stays the focus. */
+const LIGHT_STYLE = {
   version: 8,
-  name: "numidia-eye-blank",
-  sources: {},
-  layers: [{ id: "bg", type: "background", paint: { "background-color": "#080f0d" } }],
+  name: "numidia-eye-light",
+  sources: {
+    positron: {
+      type: "raster",
+      tiles: ["https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors © CARTO",
+      maxzoom: 19,
+    },
+  },
+  layers: [{ id: "positron", type: "raster", source: "positron",
+    paint: { "raster-opacity": 1 } }],
 };
 
 /* Algeria's extent, from the bundled boundaries themselves rather than a
@@ -106,7 +115,7 @@ const T = {
   scoreLbl: "score",
   prioCritical: "critical", prioModerate: "moderate", prioLow: "low",
 
-  sourcesNote: "Detections: NASA FIRMS VIIRS via the NUMIDIA API. Map: the project's own wilaya boundaries on a blank style — no external tile server, so no neighbouring country can appear. Verifier: live-v1 structured-data model, served read-only.",
+  sourcesNote: "Detections: NASA FIRMS VIIRS via the NUMIDIA API. Map: light streets basemap (© OpenStreetMap contributors © CARTO) with the project's own wilaya boundaries. Verifier: live-v1 structured-data model, served read-only.",
   termsNote: "No site-wide data licence is declared. Code MIT. Data terms are stated per layer above.",
   foot: "Independent research prototype. Not affiliated with or endorsed by any government body.",
 };
@@ -506,6 +515,176 @@ function renderReport() {
 }
 
 /* ---------------------------------------------------------------- detail + ai */
+/* -------------------------------------------- AI verdict explanations */
+/* Template-based plain-language explanations for the verifier's verdicts.
+   NO LLM, NO network calls: every sentence is built from the detection's own
+   measured feature values and the verifier's verdict + model score. Honest by
+   construction — templates only describe what the features show, always hedged
+   ("suggests", "consistent with", "likely"), never claiming certainty the
+   model lacks. The model, API and verdict logic are untouched; this is a
+   presentation layer on top.
+
+   Feature reference (verifier_v2/config.json, importances in
+   feature_importance.csv):
+     bright_ti4/bright_ti5 — VIIRS I-band brightness temps (K); ti5 is the
+       single most important feature (0.34).
+     frp — fire radiative power (MW).  f_frp — derived FRP feature.
+     f_bt_diff — ti4 minus ti5: large = intense sub-pixel heat source.
+     confidence — FIRMS detection confidence.  scan/track — pixel size (km);
+       small = compact point source.  satellite — N/N20/N21.
+
+   EN + AR strings. AI_LANG selects the display language ('en' | 'ar').
+   There is currently no dashboard-wide EN/AR toggle (site.js is English-only
+   apart from wilaya names), so this defaults to 'en' and is ready to wire up. */
+const AI_LANG = "en";
+
+const AI_X = {
+  en: {
+    /* verdict leads */
+    fireLead: "Likely a wildfire.",
+    nonFireLead: "Likely not a wildfire — the signature is consistent with industrial heat, such as a gas flare.",
+    uncertainLead: "Uncertain — the thermal signature doesn't clearly match wildfires or industrial flares.",
+    unavailableLead: "The AI can't verify this detection.",
+    /* southern data-gap body (shown instead of factors) */
+    southBody: "There are no independently confirmed wildfire examples from southern Algeria (below 34°N) in the training data, so the verifier has nothing to compare against here. This is a data gap, not a judgment — the satellite detection itself is real.",
+    /* factor templates — {v} filled with the measured value */
+    fFrpHigh: "Strong heat output: {v} MW of radiative power.",
+    fFrpMod: "Moderate heat output ({v} MW), in the range the model associates with vegetation fires.",
+    fFrpLow: "Low heat output ({v} MW) for the observed temperature.",
+    fConfHigh: "High-confidence satellite detection ({v}%).",
+    fConfLow: "Low satellite confidence ({v}%) — the observation itself is less certain.",
+    fBtDiffHigh: "Sharp thermal contrast ({v} K above background) — an intense sub-pixel heat source.",
+    fBtDiffLow: "Weak thermal contrast ({v} K) — the heat barely stands out from the background.",
+    fT4High: "Very high surface temperature ({v} K).",
+    fT4Mod: "Elevated surface temperature ({v} K).",
+    fFlareSig: "Very high temperature ({t} K) with limited radiative spread ({f} MW) — the classic gas-flare pattern: burns hotter and smaller than a wildfire.",
+    fPointSrc: "Compact pixel footprint ({v} km) — suggests a point heat source rather than a spreading fire.",
+    fScoreFireStrong: "Model score {v} is well above the fire threshold (0.52).",
+    fScoreFireNear: "Model score {v} is just above the fire threshold (0.52) — close call, worth a closer look.",
+    fScoreNonFireStrong: "Model score {v} is well below the non-fire threshold (0.33).",
+    fScoreNonFireNear: "Model score {v} is just below the non-fire threshold (0.33) — close call.",
+    fScoreUncertain: "Model score {v} sits between the non-fire (≤0.33) and fire (≥0.52) thresholds.",
+    fMixedTemp: "High temperature ({t} K) leans flare, but the radiative power ({f} MW) is in wildfire range — the signals disagree.",
+    fMixedConf: "The thermal signal is ambiguous and satellite confidence is low ({v}%) — two reasons to stay uncertain.",
+    fTraining: "The model's non-fire class is mostly catalogued gas flares, and it has seen many signatures like this one.",
+    fSouthNote: "Southern detections are outside the verifier's validated area.",
+    whyTitle: "Why this verdict",
+  },
+  ar: {
+    fireLead: "من المرجح أن يكون حريق غابات.",
+    nonFireLead: "من المرجح أنه ليس حريق غابات — البصمة تطابق مصادر حرارية صناعية، مثل شعلات الغاز.",
+    uncertainLead: "غير مؤكد — البصمة الحرارية لا تطابق بوضوح حرائق الغابات ولا الشعلات الصناعية.",
+    unavailableLead: "لا يمكن للذكاء الاصطناعي التحقق من هذا الرصد.",
+    southBody: "لا توجد أمثلة مؤكدة لحرائق الغابات في جنوب الجزائر (تحت خط عرض 34° شمالاً) في بيانات التدريب، لذا لا يملك المحقق ما يقارن به هنا. هذه فجوة في البيانات وليست حكماً — الرصد الفضائي نفسه حقيقي.",
+    fFrpHigh: "انبعاث حراري قوي: {v} ميغاواط من القدرة الإشعاعية.",
+    fFrpMod: "انبعاث حراري متوسط ({v} ميغاواط)، ضمن النطاق الذي يربطه النموذج بحرائق الغطاء النباتي.",
+    fFrpLow: "انبعاث حراري منخفض ({v} ميغاواط) مقارنة بدرجة الحرارة المرصودة.",
+    fConfHigh: "رصد فضائي عالي الثقة ({v}٪).",
+    fConfLow: "ثقة فضائية منخفضة ({v}٪) — الرصد نفسه أقل يقيناً.",
+    fBtDiffHigh: "تباين حراري حاد ({v} كلفن فوق الخلفية) — مصدر حراري شديد تحت البكسل.",
+    fBtDiffLow: "تباين حراري ضعيف ({v} كلفن) — الحرارة بالكاد تتميز عن الخلفية.",
+    fT4High: "درجة حرارة سطح مرتفعة جداً ({v} كلفن).",
+    fT4Mod: "درجة حرارة سطح مرتفعة ({v} كلفن).",
+    fFlareSig: "درجة حرارة مرتفعة جداً ({t} كلفن) مع انتشار إشعاعي محدود ({f} ميغاواط) — النمط الكلاسيكي لشعلة الغاز: تحترق أشد حرارة وأصغر حجماً من حريق الغابات.",
+    fPointSrc: "بصمة بكسل مدمجة ({v} كم) — توحي بمصدر حراري نقطي وليس حريقاً منتشراً.",
+    fScoreFireStrong: "نتيجة النموذج {v} أعلى بكثير من عتبة الحريق (0.52).",
+    fScoreFireNear: "نتيجة النموذج {v} أعلى بقليل من عتبة الحريق (0.52) — حالة حدّية تستحق نظرة أدق.",
+    fScoreNonFireStrong: "نتيجة النموذج {v} أدنى بكثير من عتبة اللاحريق (0.33).",
+    fScoreNonFireNear: "نتيجة النموذج {v} أدنى بقليل من عتبة اللاحريق (0.33) — حالة حدّية.",
+    fScoreUncertain: "نتيجة النموذج {v} تقع بين عتبة اللاحريق (≤0.33) وعتبة الحريق (≥0.52).",
+    fMixedTemp: "درجة الحرارة المرتفعة ({t} كلفن) توحي بشعلة، لكن القدرة الإشعاعية ({f} ميغاواط) ضمن نطاق حرائق الغابات — الإشارات متضاربة.",
+    fMixedConf: "الإشارة الحرارية غامضة والثقة الفضائية منخفضة ({v}٪) — سببان للبقاء في عدم اليقين.",
+    fTraining: "الفئة اللاحريقية في النموذج تتكون في معظمها من شعلات غاز موثقة، وقد رأى النموذج العديد من البصمات المشابهة.",
+    fSouthNote: "الرصدات الجنوبية خارج النطاق المعتمد للمحقق.",
+    whyTitle: "لماذا هذا الحكم",
+  },
+};
+
+/* Build the explanation for one detection + verdict.
+   d: detection detail (from /detections/{id}); ai: S.ai verdict object.
+   Returns { lead, factors[] } in AI_LANG, or null when no verdict to explain. */
+function aiExplain(d, ai) {
+  const X = AI_X[AI_LANG] || AI_X.en;
+  if (!d) return null;
+
+  const num = (v) => (typeof v === "number" && isFinite(v) ? v : null);
+  const frp = num(d.frp);
+  const t4 = num(d.bright_ti4);
+  const t5 = num(d.bright_ti5);
+  const btDiff = (t4 != null && t5 != null) ? t4 - t5 : null;
+  const conf = num(d.confidence);
+  const confPct = conf != null ? Math.round(conf * 100) : null;
+  const pix = num(d.scan) != null && num(d.track) != null
+    ? Math.max(d.scan, d.track) : (num(d.scan) || num(d.track));
+  const lat = num(d.lat);
+  const score = ai && typeof ai.probability === "number" ? ai.probability : null;
+  const pred = ai && ai.prediction;
+  const t = (s, v) => s.replace("{v}", v);
+  const factors = [];
+  const push = (s) => { if (s && factors.length < 3) factors.push(s); };
+
+  /* Southern data gap: honest UNAVAILABLE, no verdict to justify. */
+  const isSouth = lat != null && lat < 34.0;
+  const aiDown = !ai || ai.status !== "available" || score == null;
+  if (isSouth || (aiDown && pred !== "FIRE" && pred !== "NON_FIRE")) {
+    return { lead: X.unavailableLead, factors: [], body: X.southBody, unavailable: true };
+  }
+  if (aiDown) return null;
+
+  const scoreS = score.toFixed(2);
+
+  if (pred === "FIRE") {
+    const lead = X.fireLead;
+    /* Strongest evidence first: score position, then thermal features. */
+    push(score >= 0.75 ? t(X.fScoreFireStrong, scoreS) : t(X.fScoreFireNear, scoreS));
+    if (frp != null) push(frp >= 100 ? t(X.fFrpHigh, frp.toFixed(1)) : t(X.fFrpMod, frp.toFixed(1)));
+    if (btDiff != null && btDiff >= 50) push(t(X.fBtDiffHigh, btDiff.toFixed(0)));
+    else if (t4 != null && t4 >= 350) push(t(X.fT4Mod, t4.toFixed(0)));
+    if (confPct != null && confPct >= 80) push(t(X.fConfHigh, confPct));
+    return { lead, factors };
+  }
+
+  if (pred === "NON_FIRE") {
+    const lead = X.nonFireLead;
+    push(score <= 0.15 ? t(X.fScoreNonFireStrong, scoreS) : t(X.fScoreNonFireNear, scoreS));
+    /* The flare pattern: extreme heat, small footprint — most diagnostic. */
+    if (t4 != null && t4 >= 400 && frp != null && frp < 100)
+      push(X.fFlareSig.replace("{t}", t4.toFixed(0)).replace("{f}", frp.toFixed(1)));
+    else if (t4 != null && t4 >= 400) push(t(X.fT4High, t4.toFixed(0)));
+    if (pix != null && pix < 1.0) push(t(X.fPointSrc, pix.toFixed(2)));
+    else if (btDiff != null && btDiff < 30) push(t(X.fBtDiffLow, btDiff.toFixed(0)));
+    push(X.fTraining);
+    return { lead, factors: factors.slice(0, 3) };
+  }
+
+  /* UNCERTAIN — say what pulls each way. */
+  const lead = X.uncertainLead;
+  push(t(X.fScoreUncertain, scoreS));
+  if (t4 != null && t4 >= 400 && frp != null && frp >= 10 && frp < 200)
+    push(X.fMixedTemp.replace("{t}", t4.toFixed(0)).replace("{f}", frp.toFixed(1)));
+  else if (confPct != null && confPct < 60)
+    push(t(X.fMixedConf, confPct));
+  else if (frp != null && frp < 10)
+    push(t(X.fFrpLow, frp.toFixed(1)));
+  else if (btDiff != null)
+    push(btDiff >= 50 ? t(X.fBtDiffHigh, btDiff.toFixed(0)) : t(X.fBtDiffLow, btDiff.toFixed(0)));
+  return { lead, factors };
+}
+
+function renderAiExplain(d, ai) {
+  const X = AI_X[AI_LANG] || AI_X.en;
+  const ex = aiExplain(d, ai);
+  if (!ex) return "";
+  const factors = ex.factors.length
+    ? `<ul class="ai-why">${ex.factors.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : "";
+  const body = ex.body ? `<p class="note">${esc(ex.body)}</p>` : "";
+  return `<div class="ai-explain">
+    <div class="ai-why-title">${esc(X.whyTitle)}</div>
+    <p class="note strong">${esc(ex.lead)}</p>
+    ${body}${factors}
+  </div>`;
+}
+
 function renderDetail() {
   const slot = document.getElementById("detail-slot");
   if (S.detailPhase === "loading") {
@@ -553,6 +732,7 @@ function renderAi() {
         <div class="row"><span>${esc(T.aiThr)}</span><span>${typeof S.ai.threshold === "number" ? S.ai.threshold.toFixed(4) : esc(T.unavailable)}</span></div>
         <div class="row"><span>${esc(T.aiSchema)}</span><span>${esc(orUn(S.ai.features_schema))}</span></div>
       ` : `<p class="note">${esc(S.ai.message || T.aiScope)}</p>`}
+      ${renderAiExplain(S.detail, S.ai)}
       <p class="note">${esc(T.aiScope)}</p>
     </div>` : "";
   slot.innerHTML = `<div class="ai-wrap">${btn}${out}</div>`;
@@ -717,7 +897,7 @@ function toggleKeys() {
 function initMap() {
   map = new maplibregl.Map({
     container: "map",
-    style: BLANK_STYLE,
+    style: LIGHT_STYLE,
     center: [2.5, 28.0], zoom: 4.4, minZoom: 3.5, maxZoom: 12,
     attributionControl: false,
   });
@@ -727,15 +907,15 @@ function initMap() {
   map.on("load", () => {
     map.addSource("wilayas", { type: "geojson", data: EMPTY });
     map.addLayer({ id: "wil-fill", type: "fill", source: "wilayas",
-      paint: { "fill-color": "#12201a", "fill-opacity": 0.85 } });
+      paint: { "fill-color": "#dcebe2", "fill-opacity": 0.55 } });
     map.addLayer({ id: "wil-hover", type: "fill", source: "wilayas", filter: ["==", ["get", "hover"], true],
-      paint: { "fill-color": "#3fa87c", "fill-opacity": 0.18 } });
+      paint: { "fill-color": "#3fa87c", "fill-opacity": 0.22 } });
     map.addLayer({ id: "wil-active", type: "fill", source: "wilayas", filter: ["==", ["get", "on"], true],
-      paint: { "fill-color": "#d7c5a1", "fill-opacity": 0.14 } });
+      paint: { "fill-color": "#3fa87c", "fill-opacity": 0.16 } });
     map.addLayer({ id: "wil-line", type: "line", source: "wilayas",
-      paint: { "line-color": "#2f6b53", "line-width": 0.8, "line-opacity": 0.85 } });
+      paint: { "line-color": "#8fa89a", "line-width": 0.9, "line-opacity": 0.9 } });
     map.addLayer({ id: "wil-active-line", type: "line", source: "wilayas", filter: ["==", ["get", "on"], true],
-      paint: { "line-color": "#d7c5a1", "line-width": 2, "line-opacity": 1 } });
+      paint: { "line-color": "#2f6b53", "line-width": 2, "line-opacity": 1 } });
     /* No symbol layers here on purpose: the blank style carries no `glyphs`
        endpoint, and adding one would reintroduce an external dependency. Text
        is drawn as local DOM markers instead — crisper, and still offline. */
@@ -743,8 +923,8 @@ function initMap() {
     map.addSource("detections", { type: "geojson", data: EMPTY,
       cluster: true, clusterMaxZoom: 11, clusterRadius: 45 });
     map.addLayer({ id: "clu", type: "circle", source: "detections", filter: ["has", "point_count"],
-      paint: { "circle-color": "#6fb3d9", "circle-radius": ["step", ["get", "point_count"], 12, 25, 16, 100, 20],
-        "circle-stroke-color": "#080f0d", "circle-stroke-width": 1.5 } });
+      paint: { "circle-color": "#2f7fb8", "circle-radius": ["step", ["get", "point_count"], 12, 25, 16, 100, 20],
+        "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.5 } });
     map.addLayer({ id: "cluc", type: "circle", source: "detections", filter: ["has", "point_count"],
       paint: { "circle-opacity": 0 } });
     /* Fire dots glow orange: a blurred halo under a crisp core, so every
@@ -788,7 +968,7 @@ function initMap() {
         "circle-stroke-color": CORE_S, "circle-stroke-width": 1.2,
       } });
     map.addLayer({ id: "sel", type: "circle", source: "detections", filter: ["==", ["get", "sel"], true],
-      paint: { "circle-color": "#6fb3d9", "circle-radius": 9.5, "circle-stroke-color": "#080f0d", "circle-stroke-width": 3 } });
+      paint: { "circle-color": "#2f7fb8", "circle-radius": 9.5, "circle-stroke-color": "#ffffff", "circle-stroke-width": 3 } });
 
     for (const l of ["wil-fill", "wil-line", "wil-hover", "wil-active"]) {
       map.on("mouseenter", l, () => (map.getCanvas().style.cursor = "pointer"));
@@ -840,7 +1020,8 @@ function pushDetections() {
   if (!src) return;
   src.setData({ type: "FeatureCollection", features: shown().map((d) => ({
     type: "Feature", geometry: { type: "Point", coordinates: [d.lon, d.lat] },
-    properties: { id: d.detection_id, state: d.state, sel: d.detection_id === selId },
+    properties: { id: d.detection_id, state: d.state, sel: d.detection_id === selId,
+      frp: typeof d.frp === "number" && isFinite(d.frp) ? d.frp : 0 },
   })) });
 }
 
