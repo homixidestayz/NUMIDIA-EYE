@@ -1436,6 +1436,36 @@ document.getElementById("lang-toggle").addEventListener("click", () => {
   applyLang();
 });
 
+/* Theme toggle: light <-> dark. Persists in localStorage, swaps basemap too. */
+let UI_THEME = "light";
+try { UI_THEME = localStorage.getItem("numidia-theme") || "light"; } catch (e) {}
+function applyTheme() {
+  document.documentElement.setAttribute("data-theme", UI_THEME);
+  const btn = document.getElementById("theme-toggle");
+  if (btn) btn.textContent = UI_THEME === "dark" ? "☀️" : "🌙";
+  try { localStorage.setItem("numidia-theme", UI_THEME); } catch (e) {}
+  /* Swap map basemap: Esri streets (light) <-> Esri dark gray canvas. */
+  if (typeof map !== "undefined" && map && map.getSource) {
+    const src = map.getSource("streets");
+    if (src && src.tiles) {
+      const dark = UI_THEME === "dark";
+      src.tiles = [dark
+        ? "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+        : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"];
+      /* Force reload by removing and re-adding the layer. */
+      if (map.getLayer("streets")) map.removeLayer("streets");
+      map.addLayer({ id: "streets", type: "raster", source: "streets",
+        paint: { "raster-opacity": 1 } }, map.getLayer("wil-fill") ? "wil-fill" : undefined);
+    }
+  }
+}
+document.getElementById("theme-toggle").addEventListener("click", () => {
+  UI_THEME = UI_THEME === "dark" ? "light" : "dark";
+  applyTheme();
+});
+/* Apply saved theme on load. */
+applyTheme();
+
 /* Inspection handle: a top-level `const` is invisible from the console or an
    automation driver, so state and the real actions are published here. */
 window.NUMIDIA_EYE = {
