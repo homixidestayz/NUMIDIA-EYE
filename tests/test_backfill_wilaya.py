@@ -117,7 +117,7 @@ def test_points_outside_algeria_become_null_not_a_neighbour(db):
 
 def test_apply_does_not_touch_ingest_runs(db):
     db_mod.record_run(mode="test", sources=["T"], urls=["u"], count_new=4,
-                      count_total=4, status="ok")
+                      count_total=4, status="ok", path=db)
     with sqlite3.connect(db) as con:
         before = con.execute("SELECT COUNT(*) FROM ingest_runs").fetchone()[0]
 
