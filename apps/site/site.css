@@ -459,3 +459,19 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
   .keyhelp { display: none; }
   .foot { padding: 7px 12px; }
 }
+
+/* Dark: catch-all for white stat boxes and cards */
+[data-theme="dark"] .wil-cell,
+[data-theme="dark"] .stat,
+[data-theme="dark"] .dstat,
+[data-theme="dark"] .detail-stat,
+[data-theme="dark"] [class*="stat"] {
+  background: var(--panel-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+[data-theme="dark"] .wil-cell b,
+[data-theme="dark"] .wil-cell span {
+  color: var(--text) !important;
+}
+[data-theme="dark"] .wil-cell span { color: var(--muted) !important; }
