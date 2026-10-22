@@ -32,21 +32,21 @@ const API = resolveApiBase();
 const DET_LIMIT = 500;
 const EMPTY = { type: "FeatureCollection", features: [] };
 
-/* Light civic basemap: CartoDB Positron (© OpenStreetMap contributors © CARTO).
+/* Light civic basemap: Esri World Street Map (free, no key required).
    The project's own wilaya boundaries draw on top, so Algeria stays the focus. */
 const LIGHT_STYLE = {
   version: 8,
   name: "numidia-eye-light",
   sources: {
-    positron: {
+    streets: {
       type: "raster",
-      tiles: ["https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"],
+      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"],
       tileSize: 256,
-      attribution: "© OpenStreetMap contributors © CARTO",
+      attribution: "© Esri, HERE, Garmin, OpenStreetMap contributors",
       maxzoom: 19,
     },
   },
-  layers: [{ id: "positron", type: "raster", source: "positron",
+  layers: [{ id: "streets", type: "raster", source: "streets",
     paint: { "raster-opacity": 1 } }],
 };
 
@@ -115,7 +115,7 @@ const T = {
   scoreLbl: "score",
   prioCritical: "critical", prioModerate: "moderate", prioLow: "low",
 
-  sourcesNote: "Detections: NASA FIRMS VIIRS via the NUMIDIA API. Map: light streets basemap (© OpenStreetMap contributors © CARTO) with the project's own wilaya boundaries. Verifier: live-v1 structured-data model, served read-only.",
+  sourcesNote: "Detections: NASA FIRMS VIIRS via the NUMIDIA API. Map: Esri World Street Map (© Esri, HERE, Garmin, OpenStreetMap contributors) with the project's own wilaya boundaries. Verifier: live-v1 structured-data model, served read-only.",
   termsNote: "No site-wide data licence is declared. Code MIT. Data terms are stated per layer above.",
   foot: "Independent research prototype. Not affiliated with or endorsed by any government body.",
 };
@@ -623,11 +623,17 @@ function aiExplain(d, ai) {
   const factors = [];
   const push = (s) => { if (s && factors.length < 3) factors.push(s); };
 
-  /* Southern data gap: honest UNAVAILABLE, no verdict to justify. */
+  /* Southern data gap: honest caveat, but explain the actual verdict if the
+     model produced one. UNAVAILABLE only when there is genuinely no verdict. */
   const isSouth = lat != null && lat < 34.0;
   const aiDown = !ai || ai.status !== "available" || score == null;
-  if (isSouth || (aiDown && pred !== "FIRE" && pred !== "NON_FIRE")) {
-    return { lead: X.unavailableLead, factors: [], body: X.southBody, unavailable: true };
+  const hasVerdict = pred === "FIRE" || pred === "NON_FIRE" || pred === "UNCERTAIN";
+  if (!hasVerdict) {
+    if (isSouth) {
+      return { lead: X.unavailableLead, factors: [], body: X.southBody, unavailable: true };
+    }
+    if (aiDown) return null;
+    return null;
   }
   if (aiDown) return null;
 
