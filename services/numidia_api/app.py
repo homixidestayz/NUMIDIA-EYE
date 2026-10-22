@@ -3,8 +3,8 @@
 - Source of truth: NASA FIRMS NRT API -> scheduled ingestion -> SQLite DB.
 - Freshness is enforced: stale pipelines serve STALE, never LIVE.
 - The FIRMS key lives server-side (env) and is redacted before storage.
-- AI endpoints return 503 AI_UNAVAILABLE until a real evaluated verifier
-  model exists. No fake probabilities, no LLM-as-verifier, ever.
+- AI endpoints fail closed: 503 AI_UNAVAILABLE if the verifier model is
+  missing or unverifiable. No fake probabilities, no LLM-as-verifier, ever.
 """
 from __future__ import annotations
 

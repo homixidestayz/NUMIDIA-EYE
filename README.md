@@ -8,7 +8,7 @@ In August 2026, Algeria lost 12 lives and saw 54 injured in a single day of wild
 
 ## Live demo
 
-🌐 **https://[demo-url]**
+🌐 **https://numidia-eye-budxbrcabueshrdz.francecentral-01.azurewebsites.net**
 
 Bilingual dashboard (English/العربية): live detections, AI-verified incidents, priority ranking.
 
@@ -22,6 +22,8 @@ Bilingual dashboard (English/العربية): live detections, AI-verified incid
 ## The AI
 
 A random-forest verifier (400 trees, 10 satellite features), trained on 12,847 labeled detections and tested on a held-out set of 20,716: **94% precision / 81% recall**.
+
+**Scope (honest):** the test set measures fire-vs-flare separation — the negative class is mostly catalogued gas flares. There are no independently confirmed southern-Algerian wildfire positives in the labels, so the south reads UNAVAILABLE. This is an experimental verifier, not a validated nationwide wildfire detector. It fails closed: if the model is unavailable, the API returns 503, never a fabricated verdict.
 
 ## Quick start
 
