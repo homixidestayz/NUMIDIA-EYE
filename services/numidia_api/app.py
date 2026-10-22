@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -554,6 +555,17 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
             "detection_id": detection_id,
             "lang": lang,
             "explanation": text,
+            "model": llm_mod.GROQ_MODEL,
+        }
+
+    @app.get("/system/llm-status")
+    def llm_status() -> dict:
+        """Debug: check if LLM is configured (does not expose the key)."""
+        key = os.environ.get("GROQ_API_KEY", "")
+        return {
+            "configured": bool(key.strip()),
+            "key_length": len(key.strip()) if key else 0,
+            "key_prefix": key.strip()[:4] if key.strip() else None,
             "model": llm_mod.GROQ_MODEL,
         }
 
