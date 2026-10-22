@@ -389,8 +389,8 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
 .frow { display: flex; justify-content: space-between; font-size: 11px; }
 
 /* ── map overlays ───────────────────────────────────────────── */
-.maphud { position: absolute; top: 10px; left: 10px; z-index: 2; pointer-events: none;
-  background: rgba(255,255,255,.95); border: 1px solid var(--pine);
+.maphud { position: absolute; bottom: 85px; left: 10px; z-index: 2; pointer-events: none;
+  background: var(--panel); border: 1px solid var(--pine);
   border-radius: 10px; padding: 8px 12px; box-shadow: var(--shadow); }
 .maphud b { font-size: 13px; color: var(--text); } .maphud span { font-size: 10px; color: var(--muted); display: block; }
 .resetbtn { position: absolute; top: 10px; right: 10px; z-index: 3; cursor: pointer;
@@ -507,4 +507,9 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
   background: var(--panel) !important;
   color: var(--text) !important;
   border-color: var(--border) !important;
+}
+
+[data-theme="dark"] .maphud {
+  background: var(--panel-2) !important;
+  border-color: var(--pine) !important;
 }
