@@ -24,6 +24,62 @@
   --shadow-lg: 0 2px 6px rgba(28, 43, 36, 0.10), 0 10px 28px rgba(28, 43, 36, 0.10);
   font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
 }
+/* ── Dark theme: every surface dark, every text light ── */
+[data-theme="dark"] {
+  --bg: #0f1a15;
+  --panel: #182420;
+  --panel-2: #1e2d27;
+  --surface: #22332b;
+  --surface-2: #2a3f34;
+  --border: #2e4238;
+  --border-2: #3d5548;
+  --text: #eef4f0;
+  --muted: #b8c9c0;
+  --pine: #4dbb8a;
+  --pine-dim: #1a3329;
+}
+/* Dark: wilaya list items — dark bg, light text, gold numbers */
+[data-theme="dark"] .wil-list li {
+  background: var(--panel-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+[data-theme="dark"] .wil-list .wn { color: var(--text) !important; }
+[data-theme="dark"] .wil-list .wc { color: var(--sand) !important; }
+/* Dark: pills and badges */
+[data-theme="dark"] .pill {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+/* Dark: map labels — light text with dark halo */
+[data-theme="dark"] .wlabel {
+  color: #d4e8dd !important;
+  text-shadow: 0 0 3px #0f1a15, 0 0 6px #0f1a15 !important;
+}
+/* Dark: popups */
+[data-theme="dark"] .hpop .maplibregl-popup-content {
+  background: var(--panel-2) !important;
+  color: var(--text) !important;
+  border-color: var(--border-2) !important;
+}
+/* Dark: legend */
+[data-theme="dark"] .legend {
+  background: var(--panel) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+/* Dark: map controls */
+[data-theme="dark"] .mapbtn {
+  background: var(--panel) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+[data-theme="dark"] .mapbtn[aria-pressed="true"] {
+  background: var(--pine-dim) !important;
+  color: var(--pine) !important;
+}
+
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }

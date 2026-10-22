@@ -1557,7 +1557,32 @@ document.getElementById("lang-toggle").addEventListener("click", () => {
 });
 
 /* Theme toggle: light <-> dark. Persists in localStorage, swaps basemap too. */
-/* Light theme only — dark mode removed per user request. */
+/* Theme: light (default) and dark. Toggle via button. */
+let UI_THEME = "light";
+try { UI_THEME = localStorage.getItem("numidia-theme") || "light"; } catch (e) {}
+function applyTheme() {
+  document.documentElement.setAttribute("data-theme", UI_THEME);
+  const btn = document.getElementById("theme-toggle");
+  if (btn) btn.textContent = UI_THEME === "dark" ? "☀️" : "🌙";
+  try { localStorage.setItem("numidia-theme", UI_THEME); } catch (e) {}
+  if (typeof map !== "undefined" && map && map.getLayer) {
+    const dark = UI_THEME === "dark";
+    try {
+      if (map.getLayer("background")) {
+        map.setPaintProperty("background", "background-color",
+          dark ? "#16211c" : "#eef2f0");
+      }
+    } catch (e) {}
+  }
+}
+const themeBtn = document.getElementById("theme-toggle");
+if (themeBtn) {
+  themeBtn.addEventListener("click", () => {
+    UI_THEME = UI_THEME === "dark" ? "light" : "dark";
+    applyTheme();
+  });
+}
+applyTheme();
 
 /* Inspection handle: a top-level `const` is invisible from the console or an
    automation driver, so state and the real actions are published here. */
