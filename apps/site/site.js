@@ -1110,6 +1110,28 @@ function initMap() {
         "circle-opacity": 0.32,
         "circle-blur": 0.7,
       } });
+    /* Thermal heatmap overlay: glowing heat intensity, toggleable.
+       Weight by FRP so intense fires glow brighter. Hidden by default. */
+    map.addLayer({
+      id: "fire-heat", type: "heatmap", source: "detections",
+      filter: ["!", ["has", "point_count"]],
+      layout: { visibility: "none" },
+      paint: {
+        "heatmap-weight": ["interpolate", ["linear"], ["get", "frp"],
+          0, 0.1, 10, 0.5, 100, 1, 500, 1.5],
+        "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 0, 0.8, 9, 2.5],
+        "heatmap-color": [
+          "interpolate", ["linear"], ["heatmap-density"],
+          0, "rgba(0,0,0,0)",
+          0.25, "rgba(255,140,26,0.5)",
+          0.5, "rgba(255,69,0,0.75)",
+          0.75, "rgba(230,20,20,0.9)",
+          1, "rgba(255,220,80,1)"
+        ],
+        "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 0, 8, 9, 30],
+        "heatmap-opacity": 0.85,
+      }
+    });
     map.addLayer({ id: "live", type: "circle", source: "detections",
       filter: ["all", ["!", ["has", "point_count"]], ["!=", ["get", "state"], "HISTORICAL"]],
       paint: {
@@ -1510,6 +1532,16 @@ document.addEventListener("click", (e) => {
       S.showNames = !S.showNames;
       btn.setAttribute("aria-pressed", String(S.showNames));
       syncAllLabels();
+      return;
+    }
+    if (act === "heatmap") {
+      const on = btn.getAttribute("aria-pressed") !== "true";
+      btn.setAttribute("aria-pressed", String(on));
+      try {
+        if (typeof map !== "undefined" && map && map.getLayer("fire-heat")) {
+          map.setLayoutProperty("fire-heat", "visibility", on ? "visible" : "none");
+        }
+      } catch (e) {}
       return;
     }
     if (act === "allnames") {
