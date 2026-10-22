@@ -46,8 +46,13 @@ else:  # fallback: inject right after <body>
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
-def index() -> str:
-    return _patched_index
+def index() -> HTMLResponse:
+    # Never cache the shell: it carries the versioned asset URLs, so a stale
+    # index.html would pin the browser to stale site.js/site.css.
+    return HTMLResponse(
+        content=_patched_index,
+        headers={"Cache-Control": "no-cache, must-revalidate"},
+    )
 
 
 app.mount("/", StaticFiles(directory=str(SITE), html=False), name="site")
