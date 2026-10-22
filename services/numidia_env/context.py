@@ -63,7 +63,7 @@ HOURLY_MAP = {
     "soil_temperature_7_to_28cm": "soil_temperature_7_28_c",
 }
 
-DEFAULT_TIMEOUT = 20.0
+DEFAULT_TIMEOUT = 30.0
 
 
 def build_url(lat: float, lon: float) -> str:

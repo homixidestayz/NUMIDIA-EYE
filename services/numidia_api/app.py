@@ -636,10 +636,18 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
         try:
             return env_context_mod.environment_for_incident(detail, members=members)
         except Exception as exc:  # noqa: BLE001 - a third-party call must not 500
+            # User-friendly error, not raw Python traceback
+            exc_name = type(exc).__name__
+            if "Timeout" in exc_name or "timeout" in str(exc).lower():
+                reason = "Weather service timed out — try again in a moment"
+            elif "Connection" in exc_name:
+                reason = "Weather service unreachable — check connection"
+            else:
+                reason = "Weather data unavailable right now"
             return {
                 "status": "UNAVAILABLE",
                 "incident_id": incident_id,
-                "reason": f"{type(exc).__name__}: {exc}",
+                "reason": reason,
                 "attached_to": "incident_centroid",
             }
 
