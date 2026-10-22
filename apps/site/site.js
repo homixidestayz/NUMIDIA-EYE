@@ -1570,7 +1570,15 @@ function applyTheme() {
     try {
       if (map.getLayer("background")) {
         map.setPaintProperty("background", "background-color",
-          dark ? "#16211c" : "#eef2f0");
+          dark ? "#0a0f0d" : "#eef2f0");
+      }
+      /* Wilaya boundaries: visible on dark */
+      if (map.getLayer("wil-fill")) {
+        map.setPaintProperty("wil-fill", "fill-color", dark ? "#1e2d26" : "#dcebe2");
+        map.setPaintProperty("wil-fill", "fill-opacity", dark ? 0.6 : 0.55);
+      }
+      if (map.getLayer("wil-line")) {
+        map.setPaintProperty("wil-line", "line-color", dark ? "#4a6b5d" : "#8fa89a");
       }
     } catch (e) {}
   }
