@@ -1033,8 +1033,30 @@ function initMap() {
     map.on("click", "wil-fill", (e) => focusWilaya(wilayaCodeAt(e.features[0].properties)));
     map.on("click", "clu", (e) => {
       const f = e.features[0];
-      map.getSource("detections").getClusterExpansionZoom(f.properties.cluster_id,
-        (err, z) => { if (!err) map.easeTo({ center: f.geometry.coordinates, zoom: z }); });
+      const src = map.getSource("detections");
+      /* Get all leaves in this cluster, then zoom to fit them so every
+         individual fire dot becomes visible (not just one zoom step). */
+      src.getClusterLeaves(f.properties.cluster_id, f.properties.point_count, 0,
+        (err, leaves) => {
+          if (err || !leaves || !leaves.length) {
+            /* Fallback: standard expansion zoom. */
+            src.getClusterExpansionZoom(f.properties.cluster_id,
+              (err2, z) => { if (!err2) map.easeTo({ center: f.geometry.coordinates, zoom: z }); });
+            return;
+          }
+          const coords = leaves.map(l => l.geometry.coordinates);
+          const lons = coords.map(c => c[0]), lats = coords.map(c => c[1]);
+          const bounds = [[Math.min(...lons), Math.min(...lats)],
+                          [Math.max(...lons), Math.max(...lats)]];
+          /* If all points are at (nearly) the same spot, zoom in close instead. */
+          const span = Math.max(Math.max(...lons) - Math.min(...lons),
+                                Math.max(...lats) - Math.min(...lats));
+          if (span < 0.01) {
+            map.easeTo({ center: f.geometry.coordinates, zoom: Math.min(map.getZoom() + 3, 14) });
+          } else {
+            map.fitBounds(bounds, { padding: 60, maxZoom: 14 });
+          }
+        });
     });
     for (const l of ["live", "hist"]) {
       map.on("click", l, (e) => selectDetection(e.features[0].properties.id));
