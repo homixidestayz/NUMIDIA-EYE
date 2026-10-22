@@ -32,22 +32,15 @@ const API = resolveApiBase();
 const DET_LIMIT = 500;
 const EMPTY = { type: "FeatureCollection", features: [] };
 
-/* Light civic basemap: Esri World Street Map (free, no key required).
-   The project's own wilaya boundaries draw on top, so Algeria stays the focus. */
+/* Custom light civic basemap: clean background, no external tiles.
+   The project's own wilaya boundaries are the map — pale green Algeria
+   on light, distinctive and fast with zero external dependencies. */
 const LIGHT_STYLE = {
   version: 8,
   name: "numidia-eye-light",
-  sources: {
-    streets: {
-      type: "raster",
-      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"],
-      tileSize: 256,
-      attribution: "© Esri, HERE, Garmin, OpenStreetMap contributors",
-      maxzoom: 19,
-    },
-  },
-  layers: [{ id: "streets", type: "raster", source: "streets",
-    paint: { "raster-opacity": 1 } }],
+  sources: {},
+  layers: [{ id: "background", type: "background",
+    paint: { "background-color": "#eef2f0" } }],
 };
 
 /* Algeria's extent, from the bundled boundaries themselves rather than a
@@ -115,7 +108,7 @@ const T = {
   scoreLbl: "score",
   prioCritical: "critical", prioModerate: "moderate", prioLow: "low",
 
-  sourcesNote: "Detections: NASA FIRMS VIIRS via the NUMIDIA API. Map: Esri World Street Map (© Esri, HERE, Garmin, OpenStreetMap contributors) with the project's own wilaya boundaries. Verifier: live-v1 structured-data model, served read-only.",
+  sourcesNote: "Detections: NASA FIRMS VIIRS via the NUMIDIA API. Map: the project's own wilaya boundaries on a custom light style — no external tile server. Verifier: live-v1 structured-data model, served read-only.",
   termsNote: "No site-wide data licence is declared. Code MIT. Data terms are stated per layer above.",
   foot: "Independent research prototype. Not affiliated with or endorsed by any government body.",
 };
@@ -1444,18 +1437,11 @@ function applyTheme() {
   const btn = document.getElementById("theme-toggle");
   if (btn) btn.textContent = UI_THEME === "dark" ? "☀️" : "🌙";
   try { localStorage.setItem("numidia-theme", UI_THEME); } catch (e) {}
-  /* Swap map basemap: Esri streets (light) <-> Esri dark gray canvas. */
-  if (typeof map !== "undefined" && map && map.getSource) {
-    const src = map.getSource("streets");
-    if (src && src.tiles) {
-      const dark = UI_THEME === "dark";
-      src.tiles = [dark
-        ? "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-        : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"];
-      /* Force reload by removing and re-adding the layer. */
-      if (map.getLayer("streets")) map.removeLayer("streets");
-      map.addLayer({ id: "streets", type: "raster", source: "streets",
-        paint: { "raster-opacity": 1 } }, map.getLayer("wil-fill") ? "wil-fill" : undefined);
+  /* Swap map background: light (#eef2f0) <-> dark (#0e1512). No external tiles. */
+  if (typeof map !== "undefined" && map && map.getLayer) {
+    if (map.getLayer("background")) {
+      map.setPaintProperty("background", "background-color",
+        UI_THEME === "dark" ? "#0e1512" : "#eef2f0");
     }
   }
 }
