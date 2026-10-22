@@ -3,6 +3,9 @@
 Keeps the repository untouched: imports the app factory from the repo,
 serves apps/site at /, and injects window.NUMIDIA_API_BASE so the
 dashboard talks to this same origin instead of 127.0.0.1:8010.
+
+Deploy note: any change to this file retriggers the Docker build + push,
+which re-fires the Docker Hub webhook so Azure pulls the new image.
 """
 import hashlib
 import os
