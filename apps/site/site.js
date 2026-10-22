@@ -593,13 +593,24 @@ const AI_X = {
     unavailableLead: "The AI can't verify this detection.",
     /* southern data-gap body (shown instead of factors) */
     southBody: "There are no independently confirmed wildfire examples from southern Algeria (below 34°N) in the training data, so the verifier has nothing to compare against here. This is a data gap, not a judgment — the satellite detection itself is real.",
-    /* factor templates — {v} filled with the measured value */
+    /* factor templates — {v} filled with the measured value.
+       Multiple phrasings per concept; the logic picks based on actual values
+       so different detections get different explanations. */
     fFrpHigh: "Strong heat output: {v} MW of radiative power.",
+    fFrpHigh2: "Intense burning — {v} MW radiative power, well above typical flare levels.",
     fFrpMod: "Moderate heat output ({v} MW), in the range the model associates with vegetation fires.",
+    fFrpMod2: "{v} MW heat output — consistent with an active vegetation fire, not a point source.",
     fFrpLow: "Low heat output ({v} MW) for the observed temperature.",
     fConfHigh: "High-confidence satellite detection ({v}%).",
+    fConfHigh2: "Clear satellite observation ({v}% confidence).",
     fConfLow: "Low satellite confidence ({v}%) — the observation itself is less certain.",
     fConfLowFire: "Satellite confidence is low ({v}%) — the observation was unclear, not necessarily fire-free. The thermal signature itself is strong, which is why the model still scores FIRE.",
+    fBtDiffHigh: "Sharp thermal contrast ({v} K above background) — an intense sub-pixel heat source.",
+    fBtDiffHigh2: "{v} K hotter than surroundings — a distinct heat anomaly, not background variation.",
+    fT4High: "Very high surface temperature ({v} K).",
+    fT4High2: "Surface at {v} K — extreme heat indicating active combustion.",
+    fNight: "Nighttime detection — less solar contamination, cleaner thermal signal.",
+    fDay: "Daytime detection — the model accounts for solar heating in the reading.",
     fBtDiffHigh: "Sharp thermal contrast ({v} K above background) — an intense sub-pixel heat source.",
     fBtDiffLow: "Weak thermal contrast ({v} K) — the heat barely stands out from the background.",
     fT4High: "Very high surface temperature ({v} K).",
@@ -624,14 +635,19 @@ const AI_X = {
     unavailableLead: "لا يمكن للذكاء الاصطناعي التحقق من هذا الرصد.",
     southBody: "لا توجد أمثلة مؤكدة لحرائق الغابات في جنوب الجزائر (تحت خط عرض 34° شمالاً) في بيانات التدريب، لذا لا يملك المحقق ما يقارن به هنا. هذه فجوة في البيانات وليست حكماً — الرصد الفضائي نفسه حقيقي.",
     fFrpHigh: "انبعاث حراري قوي: {v} ميغاواط من القدرة الإشعاعية.",
+    fFrpHigh2: "احتراق شديد — {v} ميغاواط قدرة إشعاعية، أعلى بكثير من مستويات الشعلات المعتادة.",
     fFrpMod: "انبعاث حراري متوسط ({v} ميغاواط)، ضمن النطاق الذي يربطه النموذج بحرائق الغطاء النباتي.",
+    fFrpMod2: "انبعاث حراري {v} ميغاواط — متوافق مع حريق غطاء نباتي نشط، وليس مصدراً نقطياً.",
     fFrpLow: "انبعاث حراري منخفض ({v} ميغاواط) مقارنة بدرجة الحرارة المرصودة.",
     fConfHigh: "رصد فضائي عالي الثقة ({v}٪).",
+    fConfHigh2: "رصد فضائي واضح ({v}٪ ثقة).",
     fConfLow: "ثقة فضائية منخفضة ({v}٪) — الرصد نفسه أقل يقيناً.",
     fConfLowFire: "ثقة القمر الصناعي منخفضة ({v}٪) — الرصد كان غير واضح، وليس بالضرورة خالياً من الحريق. البصمة الحرارية نفسها قوية، ولهذا السبب لا يزال النموذج يصنفها كحريق.",
     fBtDiffHigh: "تباين حراري حاد ({v} كلفن فوق الخلفية) — مصدر حراري شديد تحت البكسل.",
+    fBtDiffHigh2: "{v} كلفن أعلى من المحيط — شذوذ حراري مميز، وليس تبايناً في الخلفية.",
     fBtDiffLow: "تباين حراري ضعيف ({v} كلفن) — الحرارة بالكاد تتميز عن الخلفية.",
     fT4High: "درجة حرارة سطح مرتفعة جداً ({v} كلفن).",
+    fT4High2: "السطح عند {v} كلفن — حرارة شديدة تشير إلى احتراق نشط.",
     fT4Mod: "درجة حرارة سطح مرتفعة ({v} كلفن).",
     fFlareSig: "درجة حرارة مرتفعة جداً ({t} كلفن) مع انتشار إشعاعي محدود ({f} ميغاواط) — النمط الكلاسيكي لشعلة الغاز: تحترق أشد حرارة وأصغر حجماً من حريق الغابات.",
     fPointSrc: "بصمة بكسل مدمجة ({v} كم) — توحي بمصدر حراري نقطي وليس حريقاً منتشراً.",
@@ -689,12 +705,21 @@ function aiExplain(d, ai) {
 
   if (pred === "FIRE") {
     const lead = X.fireLead;
-    /* Strongest evidence first: score position, then thermal features. */
+    /* Strongest evidence first: score position, then thermal features.
+       Vary phrasing by value ranges so different fires read differently. */
     push(score >= 0.75 ? t(X.fScoreFireStrong, scoreS) : t(X.fScoreFireNear, scoreS));
-    if (frp != null) push(frp >= 100 ? t(X.fFrpHigh, frp.toFixed(1)) : t(X.fFrpMod, frp.toFixed(1)));
-    if (btDiff != null && btDiff >= 50) push(t(X.fBtDiffHigh, btDiff.toFixed(0)));
+    if (frp != null) {
+      if (frp >= 200) push(t(X.fFrpHigh2, frp.toFixed(1)));
+      else if (frp >= 100) push(t(X.fFrpHigh, frp.toFixed(1)));
+      else if (frp >= 30) push(t(X.fFrpMod2, frp.toFixed(1)));
+      else push(t(X.fFrpMod, frp.toFixed(1)));
+    }
+    if (btDiff != null && btDiff >= 80) push(t(X.fBtDiffHigh2, btDiff.toFixed(0)));
+    else if (btDiff != null && btDiff >= 50) push(t(X.fBtDiffHigh, btDiff.toFixed(0)));
+    else if (t4 != null && t4 >= 400) push(t(X.fT4High2, t4.toFixed(0)));
     else if (t4 != null && t4 >= 350) push(t(X.fT4Mod, t4.toFixed(0)));
-    if (confPct != null && confPct >= 80) push(t(X.fConfHigh, confPct));
+    if (confPct != null && confPct >= 90) push(t(X.fConfHigh2, confPct));
+    else if (confPct != null && confPct >= 80) push(t(X.fConfHigh, confPct));
     else if (confPct != null && confPct < 50) push(t(X.fConfLowFire, confPct));
     return { lead, factors };
   }
@@ -978,10 +1003,8 @@ function initMap() {
     map.addSource("detections", { type: "geojson", data: EMPTY,
       cluster: true, clusterMaxZoom: 14, clusterRadius: 35 });
     map.addLayer({ id: "clu", type: "circle", source: "detections", filter: ["has", "point_count"],
-      paint: { "circle-color": "#2f7fb8", "circle-radius": ["step", ["get", "point_count"], 12, 25, 16, 100, 20],
+      paint: { "circle-color": "#2f7fb8", "circle-radius": ["step", ["get", "point_count"], 14, 25, 18, 100, 22],
         "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.5 } });
-    map.addLayer({ id: "cluc", type: "circle", source: "detections", filter: ["has", "point_count"],
-      paint: { "circle-opacity": 0 } });
     /* Fire dots glow orange: a blurred halo under a crisp core, so every
        detection reads clearly on a phone screen. Core size still encodes FRP. */
     const GLOW = "#ff8c1a";
