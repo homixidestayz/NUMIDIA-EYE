@@ -135,12 +135,25 @@ def parse(payload: dict, lat: float, lon: float) -> EnvironmentContext:
 
 
 def http_fetch(lat: float, lon: float, timeout: float = DEFAULT_TIMEOUT) -> dict:
-    """The real network call. Raises on transport failure; parse() handles shape."""
+    """The real network call. Raises on transport failure; parse() handles shape.
+    
+    Retries up to 3 times with brief pauses — Open-Meteo occasionally drops
+    a request, but a retry almost always succeeds.
+    """
     import requests  # imported lazily so tests never need it at import time
+    import time
 
-    response = requests.get(build_url(lat, lon), timeout=timeout)
-    response.raise_for_status()
-    return response.json()
+    last_exc = None
+    for attempt in range(3):
+        try:
+            response = requests.get(build_url(lat, lon), timeout=timeout)
+            response.raise_for_status()
+            return response.json()
+        except Exception as exc:
+            last_exc = exc
+            if attempt < 2:  # don't sleep after the last try
+                time.sleep(1.5 * (attempt + 1))  # 1.5s, then 3s
+    raise last_exc
 
 
 def get_environment(
