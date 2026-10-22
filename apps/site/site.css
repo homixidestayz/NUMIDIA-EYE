@@ -475,3 +475,36 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
   color: var(--text) !important;
 }
 [data-theme="dark"] .wil-cell span { color: var(--muted) !important; }
+
+/* Dark: click popup (class="popup", not hpop) */
+[data-theme="dark"] .maplibregl-popup-content {
+  background: var(--panel-2) !important;
+  color: var(--text) !important;
+}
+[data-theme="dark"] .popup { color: var(--text) !important; }
+[data-theme="dark"] .popup strong { color: var(--live) !important; }
+[data-theme="dark"] .popup div span { color: var(--muted) !important; }
+[data-theme="dark"] .popup div b { color: var(--text) !important; }
+[data-theme="dark"] .popup .pid { color: var(--muted) !important; }
+[data-theme="dark"] .maplibregl-popup-tip {
+  border-top-color: var(--panel-2) !important;
+  border-bottom-color: var(--panel-2) !important;
+}
+/* Dark: "Show all wilayas" button and map controls */
+[data-theme="dark"] .resetbtn,
+[data-theme="dark"] .maplibregl-ctrl-group {
+  background: var(--panel) !important;
+  color: var(--text) !important;
+}
+[data-theme="dark"] .maplibregl-ctrl-group button {
+  background: var(--panel) !important;
+}
+[data-theme="dark"] .maplibregl-ctrl-icon {
+  filter: invert(0.9);
+}
+/* Dark: scale control */
+[data-theme="dark"] .maplibregl-ctrl-scale {
+  background: var(--panel) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
