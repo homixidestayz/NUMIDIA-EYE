@@ -265,6 +265,20 @@ function renderEnv() {
   </div>`;
 }
 
+async function loadEnvForDetection(detectionId) {
+  /* When a detection is tapped, find its incident and load environment. */
+  try {
+    const res = await get(`/detections/${encodeURIComponent(detectionId)}/incident`);
+    if (res && res.incident_id) {
+      await loadEnv(res.incident_id);
+    } else {
+      S.env = null; S.envPhase = "idle"; S.envId = null; renderEnv();
+    }
+  } catch (e) {
+    S.env = null; S.envPhase = "idle"; S.envId = null; renderEnv();
+  }
+}
+
 async function loadEnv(incidentId) {
   if (!incidentId) {
     S.env = null; S.envPhase = "idle"; S.envId = null; renderEnv(); return;
@@ -1407,6 +1421,8 @@ async function selectDetection(id) {
   selId = id;
   S.detailPhase = "loading"; S.ai = null; S.aiPhase = "idle";
   renderDetail(); renderAi(); renderChain(); pushDetections();
+  /* Auto-load environment for this detection's incident. */
+  loadEnvForDetection(id);
   try {
     S.detail = await get(`/detections/${encodeURIComponent(id)}`);
     S.detailPhase = "ready";

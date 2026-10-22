@@ -250,6 +250,17 @@ def get_incident(incident_id: str, path: Path | str | None = None) -> dict | Non
     return None
 
 
+def find_incident_for_detection(detection_id: str, path=None) -> str | None:
+    """Return the incident_id containing the given detection, or None."""
+    rows = db_mod.load_detection_rows(limit=5000, path=path)
+    for group in group_detections(rows):
+        member_ids = {str(m.get("detection_id")) for m in group}
+        if str(detection_id) in member_ids:
+            summary = summarize(group, verification_mod.unavailability_reason())
+            return summary["id"]
+    return None
+
+
 def methodology() -> dict:
     return {
         "methodology": METHODOLOGY,

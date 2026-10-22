@@ -437,6 +437,13 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
         return _detection_from_row(row, summary["ingest_fresh"],
                                    datetime.now(timezone.utc))
 
+    @app.get("/detections/{detection_id}/incident")
+    def get_detection_incident(detection_id: str) -> dict:
+        """Incident containing this detection, if any."""
+        incident_id = incidents_mod.find_incident_for_detection(
+            detection_id, path=app.state.db_path)
+        return {"detection_id": detection_id, "incident_id": incident_id}
+
     @app.get("/detections/{detection_id}/ai", response_model=AiResult,
              status_code=200)
     def ai_verify(detection_id: str, response: Response) -> AiResult:
