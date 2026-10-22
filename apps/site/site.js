@@ -1081,16 +1081,16 @@ function initMap() {
        detection reads clearly on a phone screen. Core size still encodes FRP. */
     const GLOW = "#ff8c1a";
     const CORE_R = ["interpolate", ["linear"], ["get", "frp"],
-      0, 7, 10, 7, 100, 9, 500, 12, 2000, 17];
+      0, 5, 5, 7, 15, 10, 30, 14];
     const CORE_C = ["interpolate", ["linear"], ["get", "frp"],
-      0, "#d9a441", 100, "#e08b3d", 500, "#e5484d"];
+      0, "#f5c542", 5, "#f08a24", 15, "#e5484d", 30, "#b71c1c"];
     const CORE_S = "rgba(255,255,255,0.9)";
     map.addLayer({ id: "hist-glow", type: "circle", source: "detections",
       filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "state"], "HISTORICAL"]],
       paint: {
         "circle-color": GLOW,
         "circle-radius": ["interpolate", ["linear"], ["get", "frp"],
-          0, 13, 100, 17, 500, 22, 2000, 30],
+          0, 10, 5, 14, 15, 19, 30, 26],
         "circle-opacity": 0.16, "circle-blur": 0.7,
       } });
     map.addLayer({ id: "hist", type: "circle", source: "detections",
