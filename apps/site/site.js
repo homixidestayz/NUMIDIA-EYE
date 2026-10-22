@@ -1073,7 +1073,7 @@ function initMap() {
        is drawn as local DOM markers instead — crisper, and still offline. */
 
     map.addSource("detections", { type: "geojson", data: EMPTY,
-      cluster: true, clusterMaxZoom: 14, clusterRadius: 35 });
+      cluster: false });
     map.addLayer({ id: "clu", type: "circle", source: "detections", filter: ["has", "point_count"],
       paint: { "circle-color": "#2f7fb8", "circle-radius": ["step", ["get", "point_count"], 14, 25, 18, 100, 22],
         "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.5 } });
