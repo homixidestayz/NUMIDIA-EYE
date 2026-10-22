@@ -533,10 +533,63 @@ function renderReport() {
      confidence — FIRMS detection confidence.  scan/track — pixel size (km);
        small = compact point source.  satellite — N/N20/N21.
 
-   EN + AR strings. AI_LANG selects the display language ('en' | 'ar').
-   There is currently no dashboard-wide EN/AR toggle (site.js is English-only
-   apart from wilaya names), so this defaults to 'en' and is ready to wire up. */
-const AI_LANG = "en";
+   EN + AR strings. UI_LANG selects the display language ('en' | 'ar').
+   The toggle button (#lang-toggle) switches both UI and AI explanations. */
+let UI_LANG = "en";
+/* AI_LANG mirrors UI_LANG for the verdict explanations. */
+let AI_LANG = "en";
+
+/* Dashboard UI strings: EN + AR. Applied by applyLang(). */
+const UI_T = {
+  en: {
+    title: "NUMIDIA EYE",
+    sub: "Wildfire intelligence for Algeria — real satellite data only",
+    indep: "Independent research prototype · non-official",
+    wil: "Wilaya",
+    inc: "Incidents & priority",
+    env: "Environment at incident",
+    src: "Sources & terms",
+    foot: "NUMIDIA EYE — live NASA FIRMS data, AI-verified. Prototype, not an official alert system.",
+    toggle: "عربي",
+    search: "Search wilayas…",
+  },
+  ar: {
+    title: "عين نوميديا",
+    sub: "معلومات حرائق الغابات في الجزائر — بيانات أقمار صناعية حقيقية فقط",
+    indep: "نموذج بحثي مستقل · غير رسمي",
+    wil: "الولاية",
+    inc: "الحوادث والأولوية",
+    env: "البيئة عند الحادث",
+    src: "المصادر والشروط",
+    foot: "عين نوميديا — بيانات ناسا FIRMS مباشرة، مُتحقق منها بالذكاء الاصطناعي. نموذج أولي، وليس نظام إنذار رسمي.",
+    toggle: "EN",
+    search: "ابحث عن الولايات…",
+  },
+};
+
+/* Apply UI_LANG to all translatable elements + set AI_LANG + RTL. */
+function applyLang() {
+  const T = UI_T[UI_LANG] || UI_T.en;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set("t-title", T.title);
+  set("t-sub", T.sub);
+  set("t-indep", T.indep);
+  set("t-wil", T.wil);
+  set("t-inc", T.inc);
+  set("t-env", T.env);
+  set("t-src", T.src);
+  set("t-foot", T.foot);
+  const btn = document.getElementById("lang-toggle");
+  if (btn) btn.textContent = T.toggle;
+  document.documentElement.lang = UI_LANG === "ar" ? "ar" : "en";
+  document.documentElement.dir = UI_LANG === "ar" ? "rtl" : "ltr";
+  AI_LANG = UI_LANG;
+  /* Re-render dynamic content in the new language. */
+  if (typeof renderDetail === "function") renderDetail();
+  if (typeof renderAi === "function") renderAi();
+  if (typeof renderWilaya === "function") renderWilaya();
+  if (typeof renderIncidents === "function") renderIncidents();
+}
 
 const AI_X = {
   en: {
@@ -1376,6 +1429,12 @@ document.addEventListener("click", (e) => {
 });
 
 installKeyboard();
+
+/* Language toggle: EN <-> AR, switches UI strings + AI explanations + RTL. */
+document.getElementById("lang-toggle").addEventListener("click", () => {
+  UI_LANG = UI_LANG === "en" ? "ar" : "en";
+  applyLang();
+});
 
 /* Inspection handle: a top-level `const` is invisible from the console or an
    automation driver, so state and the real actions are published here. */
