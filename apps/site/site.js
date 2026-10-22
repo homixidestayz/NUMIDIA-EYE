@@ -1551,12 +1551,22 @@ function applyTheme() {
   const btn = document.getElementById("theme-toggle");
   if (btn) btn.textContent = UI_THEME === "dark" ? "☀️" : "🌙";
   try { localStorage.setItem("numidia-theme", UI_THEME); } catch (e) {}
-  /* Swap map background: light (#eef2f0) <-> dark (#0e1512). No external tiles. */
+  /* Swap map background and adjust glow for theme. */
   if (typeof map !== "undefined" && map && map.getLayer) {
+    const dark = UI_THEME === "dark";
     if (map.getLayer("background")) {
       map.setPaintProperty("background", "background-color",
-        UI_THEME === "dark" ? "#0e1512" : "#eef2f0");
+        dark ? "#0e1512" : "#eef2f0");
     }
+    /* Reduce glow opacity in dark mode (less intense on dark bg). */
+    try {
+      if (map.getLayer("live-glow")) {
+        map.setPaintProperty("live-glow", "circle-opacity", dark ? 0.18 : 0.32);
+      }
+      if (map.getLayer("hist-glow")) {
+        map.setPaintProperty("hist-glow", "circle-opacity", dark ? 0.08 : 0.16);
+      }
+    } catch (e) { /* map not ready */ }
   }
 }
 document.getElementById("theme-toggle").addEventListener("click", () => {
