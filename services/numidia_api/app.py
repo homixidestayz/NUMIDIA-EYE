@@ -32,6 +32,8 @@ from numidia_intel import incidents as incidents_mod
 from numidia_intel import reports as reports_mod
 from numidia_ml import inference as ml_inference
 
+from . import llm as llm_mod
+
 ALGERIA_BBOX = {"lon_min": -9.0, "lat_min": 18.0, "lon_max": 12.0, "lat_max": 38.0}
 
 logger = logging.getLogger(__name__)
@@ -514,6 +516,76 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
         if detail is None:
             raise HTTPException(status_code=404, detail="incident not found")
         return incidents_mod.validate_detail(detail)
+
+    @app.get("/detections/{detection_id}/explain")
+    def explain_detection(
+        detection_id: str, lang: str = Query(default="en", pattern="^(en|ar)$")
+    ) -> dict:
+        """LLM-generated natural-language explanation of a detection's AI verdict.
+
+        Grounded in the real detection data — the LLM only describes what we
+        provide. Cached per detection. Returns 503 if the LLM is not configured
+        or unavailable (frontend falls back to templates).
+        """
+        summary = _summary()
+        row = db_mod.get_detection_row(detection_id, path=app.state.db_path)
+        if row is None:
+            raise HTTPException(status_code=404, detail="detection not found")
+        det = _detection_from_row(row, summary["ingest_fresh"],
+                                  datetime.now(timezone.utc))
+
+        # Get the AI verdict (reuse the verify logic)
+        ai_resp = Response()
+        try:
+            ai_result = ai_verify(detection_id, ai_resp)
+        except HTTPException:
+            raise HTTPException(status_code=503, detail="AI verdict unavailable")
+
+        det_dict = det.model_dump() if hasattr(det, "model_dump") else dict(det)
+        ai_dict = ai_result.model_dump() if hasattr(ai_result, "model_dump") else dict(ai_result)
+
+        text = llm_mod.explain_verdict(app.state.db_path, det_dict, ai_dict, lang=lang)
+        if text is None:
+            raise HTTPException(
+                status_code=503,
+                detail="LLM unavailable (not configured or API error). Use template explanation.",
+            )
+        return {
+            "detection_id": detection_id,
+            "lang": lang,
+            "explanation": text,
+            "model": llm_mod.GROQ_MODEL,
+        }
+
+    @app.get("/incidents/{incident_id}/summary")
+    def summarize_incident_endpoint(
+        incident_id: str, lang: str = Query(default="en", pattern="^(en|ar)$")
+    ) -> dict:
+        """LLM-generated briefing for civil protection about an incident.
+
+        Grounded in real incident + detection data. Cached. 503 if LLM unavailable.
+        """
+        detail = incidents_mod.get_incident(incident_id, path=app.state.db_path)
+        if detail is None:
+            raise HTTPException(status_code=404, detail="incident not found")
+
+        # Get the detections for this incident
+        detections = detail.get("detections", [])
+
+        text = llm_mod.summarize_incident(
+            app.state.db_path, detail, detections, lang=lang
+        )
+        if text is None:
+            raise HTTPException(
+                status_code=503,
+                detail="LLM unavailable (not configured or API error).",
+            )
+        return {
+            "incident_id": incident_id,
+            "lang": lang,
+            "summary": text,
+            "model": llm_mod.GROQ_MODEL,
+        }
 
     @app.get("/incidents/{incident_id}/environment")
     def get_incident_environment(incident_id: str) -> dict:

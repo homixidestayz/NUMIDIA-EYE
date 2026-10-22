@@ -478,6 +478,10 @@ function renderIncidents() {
         <div class="row"><span>${esc(T.incVerif)}</span>
           <span class="${liveInc ? "ok" : ""}">${esc(orUn((inc.verification || {}).status))}</span></div>
         <p class="note">${esc(T.incVerifNote)}</p>
+        <div class="llm-summary" data-inc-id="${esc(inc.id)}">
+          <button class="lbtn-s" data-act="llm-summary" data-id="${esc(inc.id)}">AI Briefing</button>
+          <div class="llm-summary-text" style="display:none"></div>
+        </div>
       </div>` : ""}
       <div class="pid">${esc(inc.id)}</div>
     </li>`;
@@ -758,11 +762,75 @@ function renderAiExplain(d, ai) {
   const factors = ex.factors.length
     ? `<ul class="ai-why">${ex.factors.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : "";
   const body = ex.body ? `<p class="note">${esc(ex.body)}</p>` : "";
-  return `<div class="ai-explain">
+  /* data-llm-slot: the LLM enhancement replaces this content if available. */
+  return `<div class="ai-explain" data-llm-slot="${esc(d.id || "")}">
     <div class="ai-why-title">${esc(X.whyTitle)}</div>
     <p class="note strong">${esc(ex.lead)}</p>
     ${body}${factors}
   </div>`;
+}
+
+/* LLM incident summary: fetch AI briefing for an incident, display in the panel.
+   Shows loading state, then the briefing or an error message. */
+async function loadLlmSummary(incidentId, btn) {
+  const container = btn.closest(".llm-summary");
+  if (!container) return;
+  const textDiv = container.querySelector(".llm-summary-text");
+  if (!textDiv) return;
+
+  // Toggle: if already showing, hide it
+  if (textDiv.style.display !== "none" && textDiv.textContent) {
+    textDiv.style.display = "none";
+    btn.textContent = "AI Briefing";
+    return;
+  }
+
+  const lang = (typeof AI_LANG !== "undefined" ? AI_LANG : "en") || "en";
+  btn.textContent = lang === "ar" ? "جار التحميل..." : "Loading...";
+  btn.disabled = true;
+
+  try {
+    const resp = await fetch(
+      `${API}/incidents/${encodeURIComponent(incidentId)}/summary?lang=${lang}`,
+      { signal: AbortSignal.timeout(25000) }
+    );
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    textDiv.innerHTML = `<p class="note strong"><span class="llm-badge">AI</span></p><p class="note">${esc(data.summary)}</p>`;
+    textDiv.style.display = "";
+    btn.textContent = lang === "ar" ? "إخفاء الإحاطة" : "Hide Briefing";
+  } catch (e) {
+    textDiv.innerHTML = `<p class="note warn">${esc(lang === "ar" ? "الإحاطة غير متوفرة (تحقق من مفتاح API)" : "Briefing unavailable (check API key)")}</p>`;
+    textDiv.style.display = "";
+    btn.textContent = "AI Briefing";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* LLM enhancement: fetch natural explanation, replace template if successful.
+   Silently keeps templates on any failure (no key, API error, timeout). */
+async function enhanceWithLlm() {
+  const slot = document.querySelector("[data-llm-slot]");
+  if (!slot) return;
+  const detId = slot.getAttribute("data-llm-slot");
+  if (!detId) return;
+  try {
+    const lang = (typeof AI_LANG !== "undefined" ? AI_LANG : "en") || "en";
+    const resp = await fetch(
+      `${API}/detections/${encodeURIComponent(detId)}/explain?lang=${lang}`,
+      { signal: AbortSignal.timeout(20000) }
+    );
+    if (!resp.ok) return;  // 503 = LLM unavailable, keep templates
+    const data = await resp.json();
+    if (!data.explanation) return;
+    const X = AI_X[lang] || AI_X.en;
+    slot.innerHTML = `
+      <div class="ai-why-title">${esc(X.whyTitle)} <span class="llm-badge">AI</span></div>
+      <p class="note strong">${esc(data.explanation)}</p>`;
+  } catch (e) {
+    /* Network error, timeout, etc. — templates stay. */
+  }
 }
 
 function renderDetail() {
@@ -816,6 +884,8 @@ function renderAi() {
       <p class="note">${esc(T.aiScope)}</p>
     </div>` : "";
   slot.innerHTML = `<div class="ai-wrap">${btn}${out}</div>`;
+  /* Try LLM enhancement after templates render (non-blocking). */
+  enhanceWithLlm();
 }
 
 function renderSources() {
@@ -1450,6 +1520,7 @@ document.addEventListener("click", (e) => {
       return void loadEnv(S.expanded);
     }
     if (act === "report") return void openReport(btn.dataset.id);
+    if (act === "llm-summary") return void loadLlmSummary(btn.dataset.id, btn);
     if (act === "closereport") { S.report = null; S.reportPhase = "idle"; renderReport(); renderChain(); return; }
     if (act === "names") {
       S.showNames = !S.showNames;

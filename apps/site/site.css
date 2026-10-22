@@ -338,6 +338,9 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
 .ai-explain { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
 .ai-why-title { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.7px;
   color: var(--muted); font-weight: 800; margin-bottom: 4px; }
+.llm-badge { font-size: 8px; font-weight: 700; letter-spacing: .5px;
+  background: var(--pine); color: #fff; border-radius: 4px; padding: 1px 5px;
+  vertical-align: middle; margin-inline-start: 4px; text-transform: none; }
 .ai-why { margin: 6px 0 0; padding-inline-start: 16px; display: flex;
   flex-direction: column; gap: 3px; }
 .ai-why li { font-size: 11px; line-height: 1.5; color: var(--muted); }
