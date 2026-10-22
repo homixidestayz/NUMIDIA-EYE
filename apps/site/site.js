@@ -1129,12 +1129,37 @@ function initMap() {
     }
     map.on("mousemove", "wil-fill", (e) => setWilayaFlags(wilayaCodeAt(e.features[0].properties), "hover"));
     map.on("click", "wil-fill", (e) => focusWilaya(wilayaCodeAt(e.features[0].properties)));
-    /* Cluster tap: zoom straight to where dots appear.
-       clusterMaxZoom is 12, so zoom 13+ guarantees individual dots. */
+    /* Cluster tap: show all dots in the cluster.
+       Get the actual points, fit the map to their bounds. */
     map.on("click", "clu", (e) => {
-      if (!e.features || !e.features[0]) return;
-      const coords = e.features[0].geometry.coordinates;
-      map.easeTo({ center: coords, zoom: 13.5, duration: 600 });
+      try {
+        const f = e.features && e.features[0];
+        if (!f || !f.properties) return;
+        const src = map.getSource("detections");
+        const cid = f.properties.cluster_id;
+        if (!src || cid == null || !src.getClusterLeaves) {
+          // Fallback: just zoom in
+          map.easeTo({ center: f.geometry.coordinates, zoom: map.getZoom() + 2, duration: 500 });
+          return;
+        }
+        const count = f.properties.point_count || 10;
+        src.getClusterLeaves(cid, Math.min(count, 100), 0, (err, leaves) => {
+          if (err || !leaves || !leaves.length) {
+            map.easeTo({ center: f.geometry.coordinates, zoom: 12, duration: 500 });
+            return;
+          }
+          if (leaves.length === 1) {
+            map.easeTo({ center: leaves[0].geometry.coordinates, zoom: 12, duration: 500 });
+            return;
+          }
+          // Fit bounds to show all points
+          const bounds = new maplibregl.LngLatBounds();
+          leaves.forEach(l => bounds.extend(l.geometry.coordinates));
+          map.fitBounds(bounds, { padding: 60, duration: 600, maxZoom: 12 });
+        });
+      } catch (err) {
+        // Never break the map
+      }
     });
     for (const l of ["live", "hist"]) {
       map.on("click", l, (e) => selectDetection(e.features[0].properties.id));
@@ -1532,37 +1557,7 @@ document.getElementById("lang-toggle").addEventListener("click", () => {
 });
 
 /* Theme toggle: light <-> dark. Persists in localStorage, swaps basemap too. */
-let UI_THEME = "light";
-try { UI_THEME = localStorage.getItem("numidia-theme") || "light"; } catch (e) {}
-function applyTheme() {
-  document.documentElement.setAttribute("data-theme", UI_THEME);
-  const btn = document.getElementById("theme-toggle");
-  if (btn) btn.textContent = UI_THEME === "dark" ? "☀️" : "🌙";
-  try { localStorage.setItem("numidia-theme", UI_THEME); } catch (e) {}
-  /* Swap map background and adjust glow for theme. */
-  if (typeof map !== "undefined" && map && map.getLayer) {
-    const dark = UI_THEME === "dark";
-    if (map.getLayer("background")) {
-      map.setPaintProperty("background", "background-color",
-        dark ? "#0e1512" : "#eef2f0");
-    }
-    /* Reduce glow opacity in dark mode (less intense on dark bg). */
-    try {
-      if (map.getLayer("live-glow")) {
-        map.setPaintProperty("live-glow", "circle-opacity", dark ? 0.18 : 0.32);
-      }
-      if (map.getLayer("hist-glow")) {
-        map.setPaintProperty("hist-glow", "circle-opacity", dark ? 0.08 : 0.16);
-      }
-    } catch (e) { /* map not ready */ }
-  }
-}
-document.getElementById("theme-toggle").addEventListener("click", () => {
-  UI_THEME = UI_THEME === "dark" ? "light" : "dark";
-  applyTheme();
-});
-/* Apply saved theme on load. */
-applyTheme();
+/* Light theme only — dark mode removed per user request. */
 
 /* Inspection handle: a top-level `const` is invisible from the console or an
    automation driver, so state and the real actions are published here. */
