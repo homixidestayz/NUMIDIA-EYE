@@ -1115,7 +1115,7 @@ function initMap() {
     map.addLayer({
       id: "fire-heat", type: "heatmap", source: "detections",
       filter: ["!", ["has", "point_count"]],
-      layout: { visibility: "none" },
+      layout: { visibility: "visible" },
       paint: {
         "heatmap-weight": ["interpolate", ["linear"], ["get", "frp"],
           0, 0.1, 10, 0.5, 100, 1, 500, 1.5],
