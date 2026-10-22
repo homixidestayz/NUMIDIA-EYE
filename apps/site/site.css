@@ -177,10 +177,12 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
 /* ── wilaya list: ranked bars ──────────────────────────────── */
 .wil-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .wil-list li { display: grid; grid-template-columns: 1fr 46px 26px; align-items: center;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 10px; 
   gap: 8px; padding: 4px 8px; border-radius: 6px; cursor: pointer;
   border: 1px solid transparent; transition: background .15s ease, border-color .15s ease; }
 .wil-list li:hover { background: var(--surface); }
-.wil-list li.on { background: #e6f2ec; border-color: var(--pine); }
+.wil-list li.on { background: var(--pine-dim); border-color: var(--pine); }
 .wil-list .n { font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wil-list .bar { height: 3px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
 .wil-list .bar i { display: block; height: 100%; border-radius: 2px;
@@ -222,7 +224,7 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
 .inc .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 11.5px; }
 .inc .row span { color: var(--muted); }
 .prio { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; padding: 2px 7px; border-radius: 4px;
-  border: 1px solid var(--border-2); color: var(--muted); background: #fff; }
+  border: 1px solid var(--border-2); color: var(--muted); background: var(--panel); }
 .prio.low { color: var(--pine); border-color: var(--pine); }
 .prio.moderate { color: var(--warn); border-color: var(--warn); }
 .prio.high { color: var(--warn); border-color: var(--warn); }
@@ -261,7 +263,7 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
 /* ── keyboard help ──────────────────────────────────────────── */
 .keyhelp { position: fixed; inset-block-end: 14px; inset-inline-start: 50%;
   transform: translateX(-50%); display: flex; align-items: center; gap: 12px;
-  background: #fff; border: 1px solid var(--border-2); border-radius: 10px;
+  background: var(--panel); border: 1px solid var(--border-2); border-radius: 10px;
   padding: 7px 14px; font-size: 10.5px; color: var(--muted); z-index: 40;
   box-shadow: var(--shadow-lg); }
 .keyhelp b { color: var(--sand); font-size: 10px; letter-spacing: .4px; }
