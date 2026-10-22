@@ -1110,27 +1110,6 @@ function initMap() {
         "circle-opacity": 0.32,
         "circle-blur": 0.7,
       } });
-    /* Thermal heatmap overlay: glowing heat intensity, toggleable.
-       Weight by FRP so intense fires glow brighter. Hidden by default. */
-    map.addLayer({
-      id: "fire-heat", type: "heatmap", source: "detections",
-      layout: { visibility: "visible" },
-      paint: {
-        "heatmap-weight": ["interpolate", ["linear"], ["get", "frp"],
-          0, 0.1, 10, 0.5, 100, 1, 500, 1.5],
-        "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 0, 0.8, 9, 2.5],
-        "heatmap-color": [
-          "interpolate", ["linear"], ["heatmap-density"],
-          0, "rgba(0,0,0,0)",
-          0.25, "rgba(255,140,26,0.5)",
-          0.5, "rgba(255,69,0,0.75)",
-          0.75, "rgba(230,20,20,0.9)",
-          1, "rgba(255,220,80,1)"
-        ],
-        "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 0, 8, 9, 30],
-        "heatmap-opacity": 0.85,
-      }
-    });
     map.addLayer({ id: "live", type: "circle", source: "detections",
       filter: ["all", ["!", ["has", "point_count"]], ["!=", ["get", "state"], "HISTORICAL"]],
       paint: {
@@ -1150,14 +1129,12 @@ function initMap() {
     }
     map.on("mousemove", "wil-fill", (e) => setWilayaFlags(wilayaCodeAt(e.features[0].properties), "hover"));
     map.on("click", "wil-fill", (e) => focusWilaya(wilayaCodeAt(e.features[0].properties)));
-    /* Cluster tap: zoom in to expand. Dead simple — just zoom, the
-       cluster will naturally break apart at higher zoom levels. */
+    /* Cluster tap: zoom straight to where dots appear.
+       clusterMaxZoom is 12, so zoom 13+ guarantees individual dots. */
     map.on("click", "clu", (e) => {
       if (!e.features || !e.features[0]) return;
       const coords = e.features[0].geometry.coordinates;
-      const currentZoom = map.getZoom();
-      // Zoom in by 2 levels, centered on the cluster
-      map.easeTo({ center: coords, zoom: Math.min(currentZoom + 2, 16), duration: 500 });
+      map.easeTo({ center: coords, zoom: 13.5, duration: 600 });
     });
     for (const l of ["live", "hist"]) {
       map.on("click", l, (e) => selectDetection(e.features[0].properties.id));
@@ -1533,16 +1510,7 @@ document.addEventListener("click", (e) => {
       syncAllLabels();
       return;
     }
-    if (act === "heatmap") {
-      const on = btn.getAttribute("aria-pressed") !== "true";
-      btn.setAttribute("aria-pressed", String(on));
-      try {
-        if (typeof map !== "undefined" && map && map.getLayer("fire-heat")) {
-          map.setLayoutProperty("fire-heat", "visibility", on ? "visible" : "none");
-        }
-      } catch (e) {}
-      return;
-    }
+
     if (act === "allnames") {
       S.forceAllNames = !S.forceAllNames;
       btn.setAttribute("aria-pressed", String(S.forceAllNames));
