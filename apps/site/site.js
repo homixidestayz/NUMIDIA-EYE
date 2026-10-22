@@ -757,13 +757,15 @@ function aiExplain(d, ai) {
 
 function renderAiExplain(d, ai) {
   const X = AI_X[AI_LANG] || AI_X.en;
+  if (!d) return "";
   const ex = aiExplain(d, ai);
   if (!ex) return "";
   const factors = ex.factors.length
     ? `<ul class="ai-why">${ex.factors.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>` : "";
   const body = ex.body ? `<p class="note">${esc(ex.body)}</p>` : "";
   /* data-llm-slot: the LLM enhancement replaces this content if available. */
-  return `<div class="ai-explain" data-llm-slot="${esc(d.id || "")}">
+  const detId = d.id || d.detection_id || "";
+  return `<div class="ai-explain" data-llm-slot="${esc(detId)}">
     <div class="ai-why-title">${esc(X.whyTitle)}</div>
     <p class="note strong">${esc(ex.lead)}</p>
     ${body}${factors}
