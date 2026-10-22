@@ -1114,7 +1114,6 @@ function initMap() {
        Weight by FRP so intense fires glow brighter. Hidden by default. */
     map.addLayer({
       id: "fire-heat", type: "heatmap", source: "detections",
-      filter: ["!", ["has", "point_count"]],
       layout: { visibility: "visible" },
       paint: {
         "heatmap-weight": ["interpolate", ["linear"], ["get", "frp"],
