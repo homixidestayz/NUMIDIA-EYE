@@ -35,7 +35,7 @@
   --border: #2a3b34;
   --border-2: #3a4f46;
   --text: #e8f0ec;
-  --muted: #8fa39a;
+  --muted: #a8bcb3;
   --pine: #3fa87c;
   --pine-dim: #1e3a30;
   --sand: #d9a441;
@@ -58,7 +58,7 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
   box-shadow: var(--shadow); flex-wrap: wrap; position: relative; z-index: 10; }
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .mark { width: 26px; height: 26px; border-radius: 50%; border: 2.5px solid var(--pine);
-  position: relative; flex: 0 0 auto; background: #fff; }
+  position: relative; flex: 0 0 auto; background: var(--panel); }
 .mark::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: var(--live); }
 .brandtext { min-width: 0; }
 .sub { margin: 1px 0 0; font-size: 11.5px; color: var(--muted); }
@@ -131,7 +131,7 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
 .vul-h { display: flex; align-items: center; justify-content: space-between; gap: 8px;
   font-size: 10.5px; letter-spacing: .4px; color: var(--sand); margin-bottom: 8px; font-weight: 700; }
 .vul-flag { font-size: 8.5px; letter-spacing: .2px; color: var(--muted);
-  border: 1px solid var(--border-2); border-radius: 999px; padding: 1px 7px; background: #fff; }
+  border: 1px solid var(--border-2); border-radius: 999px; padding: 1px 7px; background: var(--panel); }
 .band { margin-bottom: 8px; }
 .band-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 10px; }
 .band-h span { color: var(--muted); }
@@ -143,9 +143,9 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
 .band-n { font-size: 8.5px; color: var(--muted); opacity: .78; }
 
 /* ── hover popup ────────────────────────────────────────────── */
-.hpop .maplibregl-popup-content { background: #fff; border: 1px solid var(--border-2);
+.hpop .maplibregl-popup-content { background: var(--panel); border: 1px solid var(--border-2);
   border-radius: 10px; padding: 9px 11px; box-shadow: var(--shadow-lg); color: var(--text); }
-.hpop .maplibregl-popup-tip { border-top-color: #fff; border-bottom-color: #fff; }
+.hpop .maplibregl-popup-tip { border-top-color: var(--panel); border-bottom-color: var(--panel); }
 .hp-h { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .hp-h b { font-size: 12px; }
 .hp-frp { font-size: 11px; font-variant-numeric: tabular-nums; }

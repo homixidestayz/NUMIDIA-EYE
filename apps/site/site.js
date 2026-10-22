@@ -599,6 +599,7 @@ const AI_X = {
     fFrpLow: "Low heat output ({v} MW) for the observed temperature.",
     fConfHigh: "High-confidence satellite detection ({v}%).",
     fConfLow: "Low satellite confidence ({v}%) — the observation itself is less certain.",
+    fConfLowFire: "Satellite confidence is low ({v}%) — the observation was unclear, not necessarily fire-free. The thermal signature itself is strong, which is why the model still scores FIRE.",
     fBtDiffHigh: "Sharp thermal contrast ({v} K above background) — an intense sub-pixel heat source.",
     fBtDiffLow: "Weak thermal contrast ({v} K) — the heat barely stands out from the background.",
     fT4High: "Very high surface temperature ({v} K).",
@@ -627,6 +628,7 @@ const AI_X = {
     fFrpLow: "انبعاث حراري منخفض ({v} ميغاواط) مقارنة بدرجة الحرارة المرصودة.",
     fConfHigh: "رصد فضائي عالي الثقة ({v}٪).",
     fConfLow: "ثقة فضائية منخفضة ({v}٪) — الرصد نفسه أقل يقيناً.",
+    fConfLowFire: "ثقة القمر الصناعي منخفضة ({v}٪) — الرصد كان غير واضح، وليس بالضرورة خالياً من الحريق. البصمة الحرارية نفسها قوية، ولهذا السبب لا يزال النموذج يصنفها كحريق.",
     fBtDiffHigh: "تباين حراري حاد ({v} كلفن فوق الخلفية) — مصدر حراري شديد تحت البكسل.",
     fBtDiffLow: "تباين حراري ضعيف ({v} كلفن) — الحرارة بالكاد تتميز عن الخلفية.",
     fT4High: "درجة حرارة سطح مرتفعة جداً ({v} كلفن).",
@@ -693,6 +695,7 @@ function aiExplain(d, ai) {
     if (btDiff != null && btDiff >= 50) push(t(X.fBtDiffHigh, btDiff.toFixed(0)));
     else if (t4 != null && t4 >= 350) push(t(X.fT4Mod, t4.toFixed(0)));
     if (confPct != null && confPct >= 80) push(t(X.fConfHigh, confPct));
+    else if (confPct != null && confPct < 50) push(t(X.fConfLowFire, confPct));
     return { lead, factors };
   }
 
