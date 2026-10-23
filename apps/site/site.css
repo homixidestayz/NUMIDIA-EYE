@@ -256,7 +256,7 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
 .sw.live { width: 8px; height: 8px; background: var(--live); }
 .sw.hist { width: 7px; height: 7px; background: var(--hist); }
 .sw.sel { width: 11px; height: 11px; background: var(--accent); box-shadow: 0 0 0 2px #fff; }
-.sw.clu { width: 10px; height: 10px; background: var(--accent); box-shadow: inset 0 0 0 1px #fff; }
+.sw.clu { width: 10px; height: 10px; background: #f08a24; box-shadow: inset 0 0 0 1px #fff; }
 .sw.wil { width: 12px; height: 8px; border-radius: 2px; background: transparent;
   border: 1.5px solid var(--pine); }
 
@@ -382,12 +382,6 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
   white-space: nowrap; pointer-events: none; user-select: none;
 }
 .wlabel.is-on { color: var(--pine); font-weight: 800; font-size: 12px; }
-.clabel {
-  font-size: 10.5px; font-weight: 700; color: #fff;
-  background: #2f7fb8; border-radius: 999px; min-width: 15px; height: 15px;
-  display: flex; align-items: center; justify-content: center; padding: 0 4px;
-  box-shadow: 0 0 0 1.5px #fff, 0 1px 4px rgba(0,0,0,.25); pointer-events: none; user-select: none;
-}
 .maplibregl-marker { pointer-events: none; }
 
 @media (max-width: 1400px) { .rail { width: 280px; } .side { width: 330px; } }
