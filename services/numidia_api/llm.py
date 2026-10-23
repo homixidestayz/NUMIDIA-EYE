@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Optional
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")  # Free tier, good quality
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")  # GPT OSS 20B on Groq
 # Hugging Face fallback (free inference API)
 HF_API_URL = "https://api-inference.huggingface.co/models/meta-llama/Llama-3.3-70B-Instruct"
 TIMEOUT_S = 15
