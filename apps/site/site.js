@@ -1210,19 +1210,6 @@ function initMap() {
     map.on("click", "wil-fill", (e) => {
       const code = wilayaCodeAt(e.features[0].properties);
       focusWilaya(code);
-      /* Show summary popup (issue #7) */
-      try {
-        const wilayaDets = (S.detections || []).filter(d => d.wilaya_code === code || d.wilaya_name === e.features[0].properties.name);
-        const maxFrp = wilayaDets.length ? Math.max(...wilayaDets.map(d => d.frp || 0)) : 0;
-        const sats = [...new Set(wilayaDets.map(d => d.satellite).filter(Boolean))];
-        const name = e.features[0].properties.name || code;
-        const html = `<div class="popup"><strong>${esc(name)}</strong>
-          <div><span>Detections</span><b>${wilayaDets.length}</b></div>
-          <div><span>Max FRP</span><b>${maxFrp.toFixed(1)} MW</b></div>
-          <div><span>Satellites</span><b>${sats.join(", ") || "—"}</b></div></div>`;
-        new maplibregl.Popup({ closeButton: true, offset: 12 })
-          .setLngLat(e.lngLat).setHTML(html).addTo(map);
-      } catch (err) {}
     });
     /* Cluster tap: show all dots in the cluster.
        Get the actual points, fit the map to their bounds. */
