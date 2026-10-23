@@ -1196,8 +1196,7 @@ function initMap() {
         "circle-radius": CORE_R,
         "circle-stroke-color": CORE_S, "circle-stroke-width": 1.2,
       } });
-    map.addLayer({ id: "sel", type: "circle", source: "detections", filter: ["all", ["==", ["get", "sel"], true], ["!", ["has", "point_count"]]],
-      paint: { "circle-color": "#2f7fb8", "circle-radius": 9.5, "circle-stroke-color": "#ffffff", "circle-stroke-width": 3 } });
+
 
     for (const l of ["wil-fill", "wil-line", "wil-hover", "wil-active"]) {
       map.on("mouseenter", l, () => (map.getCanvas().style.cursor = "pointer"));
