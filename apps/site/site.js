@@ -194,10 +194,14 @@ function renderEnv() {
   const slot = document.getElementById("env-slot");
   const flag = document.getElementById("env-flag");
   if (!slot) return;
-  if (flag) flag.textContent = S.envPhase === "ready" ? T.envIsModelled : "";
+  if (flag) {
+    const showFlag = S.envPhase === "ready";
+    flag.textContent = showFlag ? T.envIsModelled : "";
+    flag.style.display = showFlag ? "" : "none";
+  }
 
   if (S.envPhase === "idle") {
-    slot.innerHTML = `<div class="note">${esc(T.envNone)}</div>`; return;
+    slot.innerHTML = `<div class="card env-empty"><p class="note">Select an incident from the list below<br>to see its live weather conditions.</p></div>`; return;
   }
   if (S.envPhase === "loading") {
     slot.innerHTML = `<div class="card"><p class="note">${esc(T.loading)}</p></div>`; return;
@@ -442,7 +446,14 @@ function renderIncidents() {
   note.className = "note"; note.textContent = "";
   if (!S.incidents.length) { note.textContent = T.incEmpty; return; }
 
-  list.innerHTML = S.incidents.map((inc) => {
+  /* Sort by priority score, highest first (issue #4) */
+  const sorted = [...S.incidents].sort((a, b) => {
+    const sa = (a.priority && typeof a.priority.score === "number") ? a.priority.score : 0;
+    const sb = (b.priority && typeof b.priority.score === "number") ? b.priority.score : 0;
+    return sb - sa;
+  });
+
+  list.innerHTML = sorted.map((inc) => {
     const p = inc.priority || {};
     const level = String(p.level || "").toLowerCase();
     const open = S.expanded === inc.id;
@@ -503,10 +514,27 @@ function renderIncidents() {
 }
 
 function renderReport() {
-  const slot = document.getElementById("report-slot");
+  /* Show report in modal overlay, not in page flow (issue #3) */
+  let modal = document.getElementById("report-modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "report-modal";
+    modal.className = "modal-overlay";
+    modal.innerHTML = `<div class="modal-box"><div id="report-modal-content"></div>
+      <button class="lbtn-s modal-close" data-act="closereport">✕ Close</button></div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeReportModal();
+    });
+  }
+  const slot = document.getElementById("report-modal-content");
+  if (S.reportPhase === "idle" || (S.reportPhase !== "loading" && S.reportPhase !== "error" && S.reportPhase !== "ready")) {
+    modal.style.display = "none"; return;
+  }
+  modal.style.display = "flex";
   if (S.reportPhase === "loading") { slot.innerHTML = `<p class="note">${esc(T.loading)}</p>`; return; }
   if (S.reportPhase === "error") { slot.innerHTML = `<p class="note warn">${esc(T.unavailable)} (${esc(S.reportErr)})</p>`; return; }
-  if (S.reportPhase !== "ready" || !S.report) { slot.innerHTML = ""; return; }
+  if (S.reportPhase !== "ready" || !S.report) { modal.style.display = "none"; return; }
   const r = S.report;
   slot.innerHTML = `<div class="report">
     <div class="frow"><b>${esc(T.reportTitle)}</b>
@@ -846,12 +874,11 @@ async function loadLlmSummary(incidentId, btn) {
     );
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
-    textDiv.innerHTML = `<p class="note strong"><span class="llm-badge">AI</span></p><p class="note">${esc(data.summary)}</p>`;
-    textDiv.style.display = "";
-    btn.textContent = lang === "ar" ? "إخفاء الإحاطة" : "Hide Briefing";
+    /* Show in modal (issue #2) */
+    showBriefingModal(`<p class="note strong"><span class="llm-badge">AI</span> Briefing</p><p class="note">${esc(data.summary)}</p>`);
+    btn.textContent = "AI Briefing";
   } catch (e) {
-    textDiv.innerHTML = `<p class="note warn">${esc(lang === "ar" ? "الإحاطة غير متوفرة (تحقق من مفتاح API)" : "Briefing unavailable (check API key)")}</p>`;
-    textDiv.style.display = "";
+    showBriefingModal(`<p class="note warn">${esc(lang === "ar" ? "الإحاطة غير متوفرة" : "AI briefing unavailable")}</p><p class="note">${esc(lang === "ar" ? "خدمة الذكاء الاصطناعي غير متاحة حاليًا." : "The AI service is currently unavailable. The template explanation above is still available.")}</p>`);
     btn.textContent = "AI Briefing";
   } finally {
     btn.disabled = false;
@@ -1121,9 +1148,13 @@ function initMap() {
        is drawn as local DOM markers instead — crisper, and still offline. */
 
     map.addSource("detections", { type: "geojson", data: EMPTY,
-      cluster: true, clusterMaxZoom: 12, clusterRadius: 50 });
+      cluster: true, clusterMaxZoom: 12, clusterRadius: 50,
+      clusterProperties: { maxFrp: ["max", ["get", "frp"]] } });
     map.addLayer({ id: "clu", type: "circle", source: "detections", filter: ["has", "point_count"],
-      paint: { "circle-color": "#2f7fb8", "circle-radius": ["step", ["get", "point_count"], 14, 25, 18, 100, 22],
+      paint: {
+        "circle-color": ["interpolate", ["linear"], ["get", "maxFrp"],
+          0, "#f5c542", 5, "#f08a24", 15, "#e5484d", 30, "#b71c1c"],
+        "circle-radius": ["step", ["get", "point_count"], 14, 25, 18, 100, 22],
         "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.5 } });
     /* Fire dots glow orange: a blurred halo under a crisp core, so every
        detection reads clearly on a phone screen. Core size still encodes FRP. */
@@ -1176,7 +1207,23 @@ function initMap() {
       });
     }
     map.on("mousemove", "wil-fill", (e) => setWilayaFlags(wilayaCodeAt(e.features[0].properties), "hover"));
-    map.on("click", "wil-fill", (e) => focusWilaya(wilayaCodeAt(e.features[0].properties)));
+    map.on("click", "wil-fill", (e) => {
+      const code = wilayaCodeAt(e.features[0].properties);
+      focusWilaya(code);
+      /* Show summary popup (issue #7) */
+      try {
+        const wilayaDets = (S.detections || []).filter(d => d.wilaya_code === code || d.wilaya_name === e.features[0].properties.name);
+        const maxFrp = wilayaDets.length ? Math.max(...wilayaDets.map(d => d.frp || 0)) : 0;
+        const sats = [...new Set(wilayaDets.map(d => d.satellite).filter(Boolean))];
+        const name = e.features[0].properties.name || code;
+        const html = `<div class="popup"><strong>${esc(name)}</strong>
+          <div><span>Detections</span><b>${wilayaDets.length}</b></div>
+          <div><span>Max FRP</span><b>${maxFrp.toFixed(1)} MW</b></div>
+          <div><span>Satellites</span><b>${sats.join(", ") || "—"}</b></div></div>`;
+        new maplibregl.Popup({ closeButton: true, offset: 12 })
+          .setLngLat(e.lngLat).setHTML(html).addTo(map);
+      } catch (err) {}
+    });
     /* Cluster tap: show all dots in the cluster.
        Get the actual points, fit the map to their bounds. */
     map.on("click", "clu", (e) => {
@@ -1196,6 +1243,16 @@ function initMap() {
             map.easeTo({ center: f.geometry.coordinates, zoom: 12, duration: 500 });
             return;
           }
+          /* Show summary popup (issue #7) */
+          try {
+            const maxFrp = Math.max(...leaves.map(l => (l.properties && l.properties.frp) || 0));
+            const html = `<div class="popup"><strong>${count} detections</strong>
+              <div><span>Max FRP</span><b>${maxFrp.toFixed(1)} MW</b></div>
+              <div class="note">Zooming to show all…</div></div>`;
+            new maplibregl.Popup({ closeButton: false, offset: 12 })
+              .setLngLat(f.geometry.coordinates).setHTML(html).addTo(map);
+            setTimeout(() => { const p = document.querySelector('.maplibregl-popup'); if (p) p.remove(); }, 2000);
+          } catch (e) {}
           if (leaves.length === 1) {
             map.easeTo({ center: leaves[0].geometry.coordinates, zoom: 12, duration: 500 });
             return;
@@ -1578,7 +1635,7 @@ document.addEventListener("click", (e) => {
     }
     if (act === "report") return void openReport(btn.dataset.id);
     if (act === "llm-summary") return void loadLlmSummary(btn.dataset.id, btn);
-    if (act === "closereport") { S.report = null; S.reportPhase = "idle"; renderReport(); renderChain(); return; }
+    if (act === "closereport") { closeReportModal(); renderChain(); return; }
     if (act === "names") {
       S.showNames = !S.showNames;
       btn.setAttribute("aria-pressed", String(S.showNames));
@@ -1606,41 +1663,8 @@ document.getElementById("lang-toggle").addEventListener("click", () => {
   applyLang();
 });
 
-/* Theme toggle: light <-> dark. Persists in localStorage, swaps basemap too. */
-/* Theme: light (default) and dark. Toggle via button. */
-let UI_THEME = "light";
-try { UI_THEME = localStorage.getItem("numidia-theme") || "light"; } catch (e) {}
-function applyTheme() {
-  document.documentElement.setAttribute("data-theme", UI_THEME);
-  const btn = document.getElementById("theme-toggle");
-  if (btn) btn.textContent = UI_THEME === "dark" ? "☀️" : "🌙";
-  try { localStorage.setItem("numidia-theme", UI_THEME); } catch (e) {}
-  if (typeof map !== "undefined" && map && map.getLayer) {
-    const dark = UI_THEME === "dark";
-    try {
-      if (map.getLayer("background")) {
-        map.setPaintProperty("background", "background-color",
-          dark ? "#0a0f0d" : "#eef2f0");
-      }
-      /* Wilaya boundaries: visible on dark */
-      if (map.getLayer("wil-fill")) {
-        map.setPaintProperty("wil-fill", "fill-color", dark ? "#1e2d26" : "#dcebe2");
-        map.setPaintProperty("wil-fill", "fill-opacity", dark ? 0.6 : 0.55);
-      }
-      if (map.getLayer("wil-line")) {
-        map.setPaintProperty("wil-line", "line-color", dark ? "#4a6b5d" : "#8fa89a");
-      }
-    } catch (e) {}
-  }
-}
-const themeBtn = document.getElementById("theme-toggle");
-if (themeBtn) {
-  themeBtn.addEventListener("click", () => {
-    UI_THEME = UI_THEME === "dark" ? "light" : "dark";
-    applyTheme();
-  });
-}
-applyTheme();
+/* Light mode only. */
+document.documentElement.removeAttribute("data-theme");
 
 /* Inspection handle: a top-level `const` is invisible from the console or an
    automation driver, so state and the real actions are published here. */
@@ -1652,3 +1676,25 @@ window.NUMIDIA_EYE = {
 };
 
 boot();
+
+function closeReportModal() {
+  S.reportPhase = "idle"; S.report = null;
+  const modal = document.getElementById("report-modal");
+  if (modal) modal.style.display = "none";
+}
+function showBriefingModal(html) {
+  let modal = document.getElementById("briefing-modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "briefing-modal";
+    modal.className = "modal-overlay";
+    modal.innerHTML = `<div class="modal-box"><div id="briefing-modal-content"></div>
+      <button class="lbtn-s modal-close" onclick="document.getElementById('briefing-modal').style.display='none'">✕ Close</button></div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) modal.style.display = "none";
+    });
+  }
+  document.getElementById("briefing-modal-content").innerHTML = html;
+  modal.style.display = "flex";
+}
