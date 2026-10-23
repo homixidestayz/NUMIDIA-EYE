@@ -446,8 +446,23 @@ function renderIncidents() {
   note.className = "note"; note.textContent = "";
   if (!S.incidents.length) { note.textContent = T.incEmpty; return; }
 
+  /* Filter by selected wilaya (if any) */
+  let filtered = S.incidents;
+  if (S.wilaya) {
+    const wcode = String(S.wilaya);
+    filtered = S.incidents.filter(inc => {
+      const wilayas = inc.wilayas || [];
+      return wilayas.some(w => String(w.code || w) === wcode);
+    });
+    if (!filtered.length) {
+      note.textContent = `No incidents in this wilaya`;
+      list.innerHTML = "";
+      return;
+    }
+  }
+
   /* Sort by priority score, highest first (issue #4) */
-  const sorted = [...S.incidents].sort((a, b) => {
+  const sorted = [...filtered].sort((a, b) => {
     const sa = (a.priority && typeof a.priority.score === "number") ? a.priority.score : 0;
     const sb = (b.priority && typeof b.priority.score === "number") ? b.priority.score : 0;
     return sb - sa;
@@ -465,7 +480,7 @@ function renderIncidents() {
       : ageH < 24 ? `${ageH.toFixed(1)}h ago` : `${Math.round(ageH / 24)}d ago`;
     const wilas = (inc.wilayas || []);
     const liveInc = inc.verification && inc.verification.status === "available";
-    return `<li class="inc ${level}">
+    return `<li class="inc ${level}" data-inc-id="${esc(inc.id)}">
       <div class="inc-top">
         <span class="prio-badge ${level}">${esc(orUn(p.level))}</span>
         <span class="score" title="${esc(T.scoreLbl)}">
@@ -945,13 +960,15 @@ function renderAi() {
   const slot = document.getElementById("ai-slot");
   if (S.detailPhase !== "ready") { slot.innerHTML = ""; return; }
   const served = S.ai && S.ai.status === "available" && S.ai.probability != null;
-  const btn = `<button class="lbtn-s" data-act="verify" ${S.aiPhase === "loading" ? "disabled" : ""}>
+  const pred = S.ai && S.ai.prediction ? String(S.ai.prediction) : null;
+  const predColor = pred === "FIRE" ? "#c0392b" : pred === "NON_FIRE" ? "#1e8449" : pred === "UNCERTAIN" ? "#b7791f" : "#666";
+  const btn = `<button class="lbtn" data-act="verify" ${S.aiPhase === "loading" ? "disabled" : ""} style="font-size:14px;padding:10px 16px;">
     ${esc(S.aiPhase === "loading" ? T.aiVerifying : T.aiVerify)}</button>`;
   const out = S.ai ? `<div class="ai-out">
+      ${served && pred ? `<div class="ai-verdict" style="font-size:22px;font-weight:800;color:${predColor};text-align:center;padding:12px 0;" data-testid="pred">${esc(pred.replace("_", " "))}</div>` : ""}
       <div class="row"><span>${esc(T.aiRes)}</span><b>${esc(T.aiExp)}</b></div>
       ${served ? `
         <div class="row"><span>${esc(T.aiModel)}</span><span>${esc(orUn(S.ai.model))}</span></div>
-        <div class="row"><span>${esc(T.aiResult)}</span><b data-testid="pred">${esc(orUn(S.ai.prediction))}</b></div>
         <div class="row"><span>${esc(T.aiProb)}</span><span data-testid="prob">${Number(S.ai.probability).toFixed(4)}</span></div>
         <div class="row"><span>${esc(T.aiThr)}</span><span>${typeof S.ai.threshold === "number" ? S.ai.threshold.toFixed(4) : esc(T.unavailable)}</span></div>
         <div class="row"><span>${esc(T.aiSchema)}</span><span>${esc(orUn(S.ai.features_schema))}</span></div>
@@ -1505,6 +1522,19 @@ async function selectDetection(id) {
     // The AI tells about every fire: verify automatically on select, no
     // extra tap. The button stays for manual re-verify.
     runVerify();
+    // Highlight the incident containing this detection
+    try {
+      const res = await get(`/detections/${encodeURIComponent(id)}/incident`);
+      if (res && res.incident_id) {
+        S.expanded = res.incident_id;
+        renderIncidents();
+        // Scroll incidents list to the highlighted one
+        setTimeout(() => {
+          const el = document.querySelector(`li.inc[data-inc-id="${res.incident_id}"]`);
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 100);
+      }
+    } catch (e) {}
     // On phones the detail panel sits below the map; bring it into view
     // so tapping a fire actually shows its information.
     if (window.matchMedia("(max-width: 768px)").matches) {
