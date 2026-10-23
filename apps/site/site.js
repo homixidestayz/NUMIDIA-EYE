@@ -1195,7 +1195,7 @@ function initMap() {
         "circle-radius": CORE_R,
         "circle-stroke-color": CORE_S, "circle-stroke-width": 1.2,
       } });
-    map.addLayer({ id: "sel", type: "circle", source: "detections", filter: ["==", ["get", "sel"], true],
+    map.addLayer({ id: "sel", type: "circle", source: "detections", filter: ["all", ["==", ["get", "sel"], true], ["!", ["has", "point_count"]]],
       paint: { "circle-color": "#2f7fb8", "circle-radius": 9.5, "circle-stroke-color": "#ffffff", "circle-stroke-width": 3 } });
 
     for (const l of ["wil-fill", "wil-line", "wil-hover", "wil-active"]) {
@@ -1231,26 +1231,22 @@ function initMap() {
         if (!f || !f.properties) return;
         const src = map.getSource("detections");
         const cid = f.properties.cluster_id;
-        if (!src || cid == null || !src.getClusterLeaves) {
-          // Fallback: just zoom in
+        if (!src || cid == null) {
           map.easeTo({ center: f.geometry.coordinates, zoom: map.getZoom() + 2, duration: 500 });
           return;
         }
-        const count = f.properties.point_count || 10;
-        src.getClusterLeaves(cid, Math.min(count, 100), 0, (err, leaves) => {
-          if (err || !leaves || !leaves.length) {
-            map.easeTo({ center: f.geometry.coordinates, zoom: 12, duration: 500 });
-            return;
-          }
-          if (leaves.length === 1) {
-            map.easeTo({ center: leaves[0].geometry.coordinates, zoom: 12, duration: 500 });
-            return;
-          }
-          // Fit bounds to show all points
-          const bounds = new maplibregl.LngLatBounds();
-          leaves.forEach(l => bounds.extend(l.geometry.coordinates));
-          map.fitBounds(bounds, { padding: 60, duration: 600, maxZoom: 12 });
-        });
+        // First tap: jump to the zoom where this cluster breaks into individual dots
+        if (src.getClusterExpansionZoom) {
+          src.getClusterExpansionZoom(cid, (err, zoom) => {
+            if (err || zoom == null) {
+              map.easeTo({ center: f.geometry.coordinates, zoom: 12, duration: 500 });
+              return;
+            }
+            map.easeTo({ center: f.geometry.coordinates, zoom: Math.min(zoom, 14), duration: 500 });
+          });
+        } else {
+          map.easeTo({ center: f.geometry.coordinates, zoom: 12, duration: 500 });
+        }
       } catch (err) {
         // Never break the map
       }
