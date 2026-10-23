@@ -1153,17 +1153,9 @@ function initMap() {
       paint: {
         "circle-color": ["interpolate", ["linear"], ["get", "maxFrp"],
           0, "#f5c542", 5, "#f08a24", 15, "#e5484d", 30, "#b71c1c"],
-        "circle-radius": ["step", ["get", "point_count"], 14, 25, 18, 100, 22],
+        "circle-radius": ["step", ["get", "point_count"], 10, 25, 13, 100, 16],
         "circle-stroke-color": "#ffffff", "circle-stroke-width": 1.5 } });
-    /* Cluster count as white text directly on the circle (no blue badge). */
-    map.addLayer({ id: "clu-count", type: "symbol", source: "detections", filter: ["has", "point_count"],
-      layout: {
-        "text-field": ["get", "point_count_abbreviated"],
-        "text-font": ["Open Sans Bold"],
-        "text-size": 11,
-        "text-anchor": "center",
-      },
-      paint: { "text-color": "#ffffff", "text-halo-color": "rgba(0,0,0,0.4)", "text-halo-width": 1 } });
+
     /* Fire dots glow orange: a blurred halo under a crisp core, so every
        detection reads clearly on a phone screen. Core size still encodes FRP. */
     const GLOW = "#ff8c1a";
@@ -1270,6 +1262,7 @@ function initMap() {
     pushWilayas(); pushDetections();
     buildWilayaMarkers();
     map.on("moveend", syncAllLabels);
+    map.on("render", syncClusterLabels);
     
     syncAllLabels();
   });
@@ -1449,8 +1442,33 @@ function syncWilayaLabels() {
   }
 }
 
+function syncClusterLabels() {
+  if (!map || !map.getSource("detections")) return;
+  const feats = map.querySourceFeatures("detections", { filter: ["has", "point_count"] });
+  const seen = new Set();
+  for (const f of feats) {
+    const id = f.properties.cluster_id;
+    const key = String(id);
+    seen.add(key);
+    let mk = clusterMarkers.get(key);
+    if (!mk) {
+      const el = document.createElement("div");
+      el.className = "clabel";
+      mk = new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat(f.geometry.coordinates).addTo(map);
+      clusterMarkers.set(key, mk);
+    } else {
+      mk.setLngLat(f.geometry.coordinates);
+    }
+    mk.getElement().textContent = f.properties.point_count_abbreviated;
+  }
+  for (const [key, mk] of clusterMarkers) {
+    if (!seen.has(key)) { mk.remove(); clusterMarkers.delete(key); }
+  }
+}
+
 function syncAllLabels() {
   syncWilayaLabels();
+  syncClusterLabels();
 }
 
 /* ---------------------------------------------------------------- detail flow */

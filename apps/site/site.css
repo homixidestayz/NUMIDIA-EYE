@@ -383,6 +383,13 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
 }
 .wlabel.is-on { color: var(--pine); font-weight: 800; font-size: 12px; }
 .maplibregl-marker { pointer-events: none; }
+.clabel {
+  font-size: 11px; font-weight: 700; color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  pointer-events: none; user-select: none;
+  line-height: 1;
+}
+
 
 @media (max-width: 1400px) { .rail { width: 280px; } .side { width: 330px; } }
 @media (max-width: 1100px) { .rail { display: none; } }
