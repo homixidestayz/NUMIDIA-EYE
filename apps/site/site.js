@@ -1560,7 +1560,7 @@ async function openReport(id) {
 
 async function loadIncidents() {
   S.incPhase = "loading"; renderIncidents(); renderChain();
-  try { const r = await get(`/incidents?limit=40`); S.incidents = r.incidents || []; S.incPhase = "ready"; }
+  try { const r = await get(`/incidents?limit=200`); S.incidents = r.incidents || []; S.incPhase = "ready"; }
   catch (err) { S.incErr = err.message; S.incPhase = "error"; }
   renderIncidents(); renderStats(); renderChain();
 }
