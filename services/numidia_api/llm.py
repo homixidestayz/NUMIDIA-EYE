@@ -28,6 +28,10 @@ from typing import Optional
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")  # GPT OSS 20B on Groq
+# Google Gemini (free via AI Studio) — OpenAI-compatible endpoint
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "groq").lower()  # "groq" or "gemini"
 # Hugging Face fallback (free inference API)
 HF_API_URL = "https://api-inference.huggingface.co/models/meta-llama/Llama-3.3-70B-Instruct"
 TIMEOUT_S = 15
@@ -144,7 +148,7 @@ def _call_groq(system_prompt: str, user_prompt: str) -> Optional[str]:
     }
 
     req = urllib.request.Request(
-        GROQ_API_URL,
+        api_url,
         data=json.dumps(payload).encode(),
         headers={
             "Content-Type": "application/json",

@@ -568,12 +568,16 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
     @app.get("/system/llm-status")
     def llm_status() -> dict:
         """Debug: check if LLM is configured (does not expose the key)."""
-        key = os.environ.get("GROQ_API_KEY", "")
+        provider = llm_mod.LLM_PROVIDER
+        key_env = "GEMINI_API_KEY" if provider == "gemini" else "GROQ_API_KEY"
+        key = os.environ.get(key_env, "")
+        model = llm_mod.GEMINI_MODEL if provider == "gemini" else llm_mod.GROQ_MODEL
         return {
             "configured": bool(key.strip()),
             "key_length": len(key.strip()) if key else 0,
             "key_prefix": key.strip()[:4] if key.strip() else None,
-            "model": llm_mod.GROQ_MODEL,
+            "model": model,
+            "provider": provider,
         }
 
     @app.get("/incidents/{incident_id}/summary")
