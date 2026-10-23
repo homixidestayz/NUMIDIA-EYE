@@ -1242,16 +1242,6 @@ function initMap() {
             map.easeTo({ center: f.geometry.coordinates, zoom: 12, duration: 500 });
             return;
           }
-          /* Show summary popup (issue #7) */
-          try {
-            const maxFrp = Math.max(...leaves.map(l => (l.properties && l.properties.frp) || 0));
-            const html = `<div class="popup"><strong>${count} detections</strong>
-              <div><span>Max FRP</span><b>${maxFrp.toFixed(1)} MW</b></div>
-              <div class="note">Zooming to show all…</div></div>`;
-            new maplibregl.Popup({ closeButton: false, offset: 12 })
-              .setLngLat(f.geometry.coordinates).setHTML(html).addTo(map);
-            setTimeout(() => { const p = document.querySelector('.maplibregl-popup'); if (p) p.remove(); }, 2000);
-          } catch (e) {}
           if (leaves.length === 1) {
             map.easeTo({ center: leaves[0].geometry.coordinates, zoom: 12, duration: 500 });
             return;
