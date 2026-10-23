@@ -537,8 +537,7 @@ function renderReport() {
   if (S.reportPhase !== "ready" || !S.report) { modal.style.display = "none"; return; }
   const r = S.report;
   slot.innerHTML = `<div class="report">
-    <div class="frow"><b>${esc(T.reportTitle)}</b>
-      <button class="lbtn-s" data-act="closereport">${esc(T.reportClose)}</button></div>
+    <div class="frow"><b>${esc(T.reportTitle)}</b></div>
     <div class="pid">${esc(r.incident_id)}</div>
     <div class="frow"><span>${esc(fmt(r.generated_at))}</span><span>${esc((r.satellites || []).join(", ") || T.unavailable)}</span></div>
     <div class="frow"><span>${r.detection_count} ${esc(T.det)}</span>
