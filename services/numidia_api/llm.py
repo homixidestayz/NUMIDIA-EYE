@@ -27,14 +27,51 @@ from pathlib import Path
 from typing import Optional
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.3-70b-versatile"  # Free tier, good quality
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")  # Free tier, good quality
+# Hugging Face fallback (free inference API)
+HF_API_URL = "https://api-inference.huggingface.co/models/meta-llama/Llama-3.3-70B-Instruct"
 TIMEOUT_S = 15
 CACHE_TABLE = "llm_cache"
 
 
 def is_configured() -> bool:
-    """True if a Groq API key is available."""
-    return bool(os.environ.get("GROQ_API_KEY", "").strip())
+    """True if a Groq or Hugging Face API key is available."""
+    return bool(os.environ.get("GROQ_API_KEY", "").strip()) or bool(
+        os.environ.get("HF_API_KEY", "").strip()
+    )
+
+
+def _call_hf(system_prompt: str, user_prompt: str) -> Optional[str]:
+    """Call Hugging Face Inference API. Returns text or None on failure."""
+    api_key = os.environ.get("HF_API_KEY", "").strip()
+    if not api_key:
+        return None
+    payload = {
+        "inputs": f"<|system|>{system_prompt}<|user|>{user_prompt}<|assistant|>",
+        "parameters": {"max_new_tokens": 250, "temperature": 0.3},
+    }
+    req = urllib.request.Request(
+        HF_API_URL,
+        data=json.dumps(payload).encode(),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT_S) as resp:
+            data = json.loads(resp.read().decode())
+            # HF returns a list with generated_text
+            if isinstance(data, list) and data:
+                text = data[0].get("generated_text", "")
+                # Extract only the assistant's reply (after the last <|assistant|>)
+                if "<|assistant|>" in text:
+                    text = text.split("<|assistant|>")[-1].strip()
+                return text.strip() or None
+            return None
+    except Exception:
+        return None
 
 
 def _cache_path(db_path: Path) -> Path:
@@ -90,10 +127,11 @@ def _set_cached(db_path: Path, key: str, response: str) -> None:
 
 
 def _call_groq(system_prompt: str, user_prompt: str) -> Optional[str]:
-    """Call Groq API. Returns the generated text, or None on any failure."""
+    """Call Groq API (with HF fallback). Returns text or None on failure."""
     api_key = os.environ.get("GROQ_API_KEY", "").strip()
     if not api_key:
-        return None
+        # Try Hugging Face as fallback
+        return _call_hf(system_prompt, user_prompt)
 
     payload = {
         "model": GROQ_MODEL,
