@@ -33,7 +33,7 @@ GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/c
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
 # OpenRouter (unified API, free models available)
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
-OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")
+OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "openai/gpt-oss-20b:free")
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "groq").lower()  # "groq", "gemini", or "openrouter"
 # Hugging Face fallback (free inference API)
 HF_API_URL = "https://api-inference.huggingface.co/models/meta-llama/Llama-3.3-70B-Instruct"
