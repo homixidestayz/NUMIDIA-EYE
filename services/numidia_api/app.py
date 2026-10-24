@@ -569,9 +569,13 @@ def build_app(db_path: Path | str | None = None) -> FastAPI:
     def llm_status() -> dict:
         """Debug: check if LLM is configured (does not expose the key)."""
         provider = llm_mod.LLM_PROVIDER
-        key_env = "GEMINI_API_KEY" if provider == "gemini" else "GROQ_API_KEY"
+        if provider == "gemini":
+            key_env, model = "GEMINI_API_KEY", llm_mod.GEMINI_MODEL
+        elif provider == "openrouter":
+            key_env, model = "OPENROUTER_API_KEY", llm_mod.OPENROUTER_MODEL
+        else:
+            key_env, model = "GROQ_API_KEY", llm_mod.GROQ_MODEL
         key = os.environ.get(key_env, "")
-        model = llm_mod.GEMINI_MODEL if provider == "gemini" else llm_mod.GROQ_MODEL
         return {
             "configured": bool(key.strip()),
             "key_length": len(key.strip()) if key else 0,

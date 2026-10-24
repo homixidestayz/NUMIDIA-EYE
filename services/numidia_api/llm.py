@@ -31,7 +31,10 @@ GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")  # GPT OSS 20B o
 # Google Gemini (free via AI Studio) — OpenAI-compatible endpoint
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
-LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "groq").lower()  # "groq" or "gemini"
+# OpenRouter (unified API, free models available)
+OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "groq").lower()  # "groq", "gemini", or "openrouter"
 # Hugging Face fallback (free inference API)
 HF_API_URL = "https://api-inference.huggingface.co/models/meta-llama/Llama-3.3-70B-Instruct"
 TIMEOUT_S = 15
@@ -131,14 +134,25 @@ def _set_cached(db_path: Path, key: str, response: str) -> None:
 
 
 def _call_groq(system_prompt: str, user_prompt: str) -> Optional[str]:
-    """Call Groq API (with HF fallback). Returns text or None on failure."""
-    api_key = os.environ.get("GROQ_API_KEY", "").strip()
+    """Call LLM API (Groq, Gemini, or OpenRouter, with HF fallback). Returns text or None on failure."""
+    if LLM_PROVIDER == "gemini":
+        api_key = os.environ.get("GEMINI_API_KEY")
+        api_url = GEMINI_API_URL
+        model = GEMINI_MODEL
+    elif LLM_PROVIDER == "openrouter":
+        api_key = os.environ.get("OPENROUTER_API_KEY")
+        api_url = OPENROUTER_API_URL
+        model = OPENROUTER_MODEL
+    else:
+        api_key = os.environ.get("GROQ_API_KEY")
+        api_url = GROQ_API_URL
+        model = GROQ_MODEL
     if not api_key:
         # Try Hugging Face as fallback
         return _call_hf(system_prompt, user_prompt)
 
     payload = {
-        "model": GROQ_MODEL,
+        "model": model,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
