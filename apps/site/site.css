@@ -358,10 +358,17 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
   background: var(--panel); border: 1px solid var(--pine);
   border-radius: 10px; padding: 8px 12px; box-shadow: var(--shadow); }
 .maphud b { font-size: 13px; color: var(--text); } .maphud span { font-size: 10px; color: var(--muted); display: block; }
-.resetbtn { position: absolute; top: 84px; right: 10px; z-index: 3; cursor: pointer;
-  background: #fff; color: var(--text); border: 1px solid var(--border-2);
-  border-radius: 8px; padding: 5px 11px; font-size: 11px; font-family: inherit; box-shadow: var(--shadow); }
-.resetbtn:hover { border-color: var(--pine); }
+.sel-chip { position: absolute; top: 84px; right: 10px; z-index: 3; cursor: pointer;
+  background: var(--panel); color: var(--text); border: 1px solid var(--border-2);
+  border-radius: 999px; padding: 5px 12px; font-size: 11px; font-family: inherit;
+  box-shadow: var(--shadow); }
+.sel-chip:hover { border-color: var(--accent); }
+.sel-note { position: absolute; bottom: 85px; left: 50%; transform: translateX(-50%);
+  z-index: 4; background: var(--panel); color: var(--text); border: 1px solid var(--warn);
+  border-radius: 999px; padding: 4px 12px; font-size: 11px; box-shadow: var(--shadow); }
+.inc.sel { box-shadow: inset 0 0 0 1px var(--accent); background: var(--surface); }
+.inc-empty { list-style: none; padding: 8px 0; }
+.pill.warn { color: var(--warn); border-color: var(--warn); background: rgba(185,138,31,.08); }
 
 /* ── footer + popup ─────────────────────────────────────────── */
 .foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
