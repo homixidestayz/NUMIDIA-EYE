@@ -54,6 +54,8 @@
   <section class="mapwrap" aria-label="Interactive map of Algeria">
     <div id="map"></div>
     <div class="maphud" id="wil-hud" hidden></div>
+    <div id="sel-note" class="sel-note" hidden></div>
+    <button class="sel-chip" id="sel-clear" data-act="clearsel" hidden>${esc(T.clearSel)}</button>
     <div class="mapctl">
       <button class="mapbtn" id="btn-names" data-act="names" aria-pressed="true">Names</button>
       <button class="mapbtn" id="btn-allnames" data-act="allnames" aria-pressed="false">All names</button>
@@ -65,7 +67,7 @@
       <span class="li"><i class="sw frp1"></i><span>5-15 MW</span></span>
       <span class="li"><i class="sw frp2"></i><span>15-30 MW</span></span>
       <span class="li"><i class="sw frp3"></i><span>&gt;30 MW</span></span>
-      <span class="li"><i class="sw clu"></i><span>Cluster (color = max FRP) — tap to zoom in</span></span>
+      <span class="li"><i class="sw clu"></i><span>Detection (color = FRP) — tap for AI verdict</span></span>
       <span class="li"><i class="sw wil"></i><span>Wilaya boundary - click to focus</span></span>
     </div>
     <button class="resetbtn" id="reset-wil" hidden>Show all wilayas</button>
