@@ -444,7 +444,10 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
   body { overflow-y: auto; height: auto; min-height: 100%; }
   h1 { font-size: 15px; }
 
-  .top { padding: 8px 12px; gap: 8px 10px; }
+  .top { padding: 8px 12px; gap: 8px 10px; flex-wrap: wrap; }
+  .brand-lockup { height: 30px; }
+  .top .tabs { order: 3; flex: 1 1 100%; width: 100%; margin-left: 0; justify-content: space-between; gap: 6px; }
+  .tabbtn { flex: 1 1 0; padding: 7px 6px; font-size: 13px; text-align: center; }
   .sub { font-size: 10.5px; }
   .indep { display: none; }
   .chip { font-size: 10px; padding: 2px 8px; }
@@ -553,3 +556,33 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
 .about-logo { max-width: 420px; width: 100%; height: auto; }
 .about-tagline { font-size: 11px; letter-spacing: 2.5px; color: var(--muted); margin: 8px 0 0; }
 [data-theme="dark"] .about-tagline { color: rgba(230,239,233,.7); }
+
+/* Phone header fix (must come last: header rules later in this file override the earlier mobile block) */
+@media (max-width: 768px) {
+  header.top { flex-wrap: wrap; }
+  header.top .brand-lockup { height: 30px; }
+  header.top .tabs { order: 3; flex: 1 1 100%; width: 100%; margin-left: 0; justify-content: space-between; gap: 6px; }
+  header.top .tabbtn { flex: 1 1 0; padding: 7px 6px; font-size: 13px; text-align: center; }
+}
+
+/* Phone fit: flow strip must fit the screen, not scroll sideways */
+@media (max-width: 768px) {
+  .flow-track { overflow-x: visible; }
+  .flow-node { flex: 1 1 0; width: auto; padding-inline-end: 4px; gap: 4px; }
+  .flow-link { width: 6px; }
+  .flow-idx { width: 18px; height: 18px; font-size: 9px; }
+  .flow-name { font-size: 10px; white-space: normal; line-height: 1.15; }
+  .flow-hint, .flow-val { font-size: 8.5px; white-space: normal; line-height: 1.15; }
+}
+
+/* Phone de-cramp: give the phone layout breathing room */
+@media (max-width: 768px) {
+  .flow { display: none; }
+  .mapwrap { height: 68vh; min-height: 420px; }
+  .wlabel { font-size: 9px; }
+  .main { gap: 16px; padding: 14px 12px; }
+  .stats { gap: 12px; margin-bottom: 20px; }
+  .side, .rail { padding: 6px 2px; }
+  #chips { padding: 8px 12px 2px; }
+  .chips { gap: 6px; }
+}
