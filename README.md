@@ -1,4 +1,4 @@
-# 🔥 NUMIDIA EYE
+# NUMIDIA EYE
 
 **Algeria's fire alarm, from space.** AI-powered wildfire intelligence on live NASA satellite data.
 
