@@ -1,4 +1,4 @@
-# NUMIDIA EYE
+# 🔥 NUMIDIA EYE
 
 **Algeria's fire alarm, from space.** AI-powered wildfire intelligence on live NASA satellite data.
 
@@ -8,7 +8,7 @@ In August 2026, Algeria lost 12 lives and saw 54 injured in a single day of wild
 
 ## Live demo
 
-🌐 **https://numidia-eye-budxbrcabueshrdz.francecentral-01.azurewebsites.net**
+🌐 **https://numidiaeye.me** (mirror: https://numidia-eye-budxbrcabueshrdz.francecentral-01.azurewebsites.net)
 
 Bilingual dashboard (English/العربية): live detections, AI-verified incidents, priority ranking.
 
@@ -39,8 +39,11 @@ Full setup: `docs/SETUP.md`.
 
 ## Who built what
 
-- **Mohamed Houssem Eddine Boucif** — everything: data pipeline, API, AI verifier, dashboard, pitch.
-- **Milissa Temmam** — vision track: satellite burn-scar validation prototype.
+- **BOUCIF MOHAMED HOUSSEM EDDINE** — Founder. Built everything: data pipeline, API, AI verifier, dashboard, pitch.
+- **Imen Benelhadj Djelloul** — Fetched the fire data.
+- **Sofiane Khelfaoui** — Civil protection advisor.
+- **Amir Boughomd** — Web Application Tester & Ai Specialist.
+- **Milissa Temam** — Vision track: satellite burn-scar validation prototype, AI specialist.
 
 ## Roadmap
 
