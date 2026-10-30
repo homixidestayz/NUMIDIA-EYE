@@ -111,7 +111,7 @@
       <img class="about-logo" id="about-logo" src="./logo-lockup-light.png" alt="NUMIDIA EYE logo" />
       <p class="about-tagline">AI-POWERED WILDFIRE INTELLIGENCE FOR ALGERIA</p>
     </div>
-    <h2>What it is</h2>
+    <h2>Overview</h2>
     <p>NUMIDIA EYE is Algeria's fire alarm, from space. It turns live NASA satellite fire detections into verified, actionable information for every wilaya — so a hot pixel on a satellite image becomes a verdict, an incident, and a place on the map, not just a dot.</p>
     <h2>The problem</h2>
     <p>Algeria's wildfires are spotted by satellite, but nobody turns those detections into verified information. Raw detections mix real wildfires with gas flares, industrial heat and noise — and a false alarm is as dangerous as a missed fire. NUMIDIA EYE exists to separate the two, honestly, before anyone acts on a signal.</p>
@@ -119,14 +119,14 @@
     <p>Every summer, the same story comes back. Heat, drought and wind turn the forests of the north — Kabylia, the Tell Atlas, the coastal wilayas — into tinder, and fires return year after year. Villages are threatened, homes and olive groves and forests are lost, and civil protection teams are stretched across many fronts at once. It is not a one-off disaster; it is a season Algeria lives through, again and again.</p>
     <p>That is why early detection matters so much. A fire spotted hours earlier is a fire that can still be contained before it reaches a village or jumps a road. A fire spotted late is already a rescue. NUMIDIA EYE exists for that gap: to see the fire from space, verify it honestly, and put it on the map while there is still time to act.</p>
     <h2>How it works</h2>
-    <p><b>1. Detect.</b> NASA FIRMS VIIRS thermal detections are ingested every 30 minutes and shown live on the map. A detection is one raw satellite pixel; colour means fire radiative power (FRP).</p>
+    <p><b>1. Detect.</b> NASA FIRMS VIIRS thermal detections are ingested every 30 minutes and shown live on the map. A detection is one raw satellite pixel; color means fire radiative power (FRP).</p>
     <p><b>2. Group.</b> Detections close in space and time are grouped into incidents — a spatiotemporal cluster, not a confirmed fire. Priority is rule-based and never uses model output.</p>
-    <p><b>3. Verify.</b> Each detection is checked by a random-forest verifier trained on 12,847 labelled detections, using 10 satellite features: brightness temperatures, FRP, confidence, brightness difference, scan geometry and satellite ID. It outputs <b>FIRE</b>, <b>NON_FIRE</b> or <b>UNCERTAIN</b>, with a model score. On held-out 2026 data it reached 94% precision and 81% recall, honestly framed as fire-vs-flare separation: the non-fire class is mostly gas flares.</p>
+    <p><b>3. Verify.</b> Each detection is checked by a random-forest verifier trained on 12,847 labeled detections, using 10 satellite features: brightness temperatures, FRP, confidence, brightness difference, scan geometry and satellite ID. It outputs <b>FIRE</b>, <b>NON_FIRE</b> or <b>UNCERTAIN</b>, with a model score. On held-out 2026 data it reached 94% precision and 81% recall, honestly framed as fire-vs-flare separation: the non-fire class is mostly gas flares.</p>
     <p><b>4. Understand.</b> Tap any dot for the AI verdict card and its explanation. Open an incident report for the full picture. The environment panel (wind, heat, dryness from Open-Meteo) is human context only — it never feeds the AI verdict.</p>
     <h2>Honest limits</h2>
-    <p>The north is <b>LIVE</b>. The south reads <b>UNAVAILABLE</b>: there are no confirmed southern wildfire labels, so the system shows grey rather than guessing. If the model is unavailable, the verifier fails closed instead of inventing a verdict. NUMIDIA EYE is an independent research prototype, not an official alert system and never a dispatch service — for a real emergency, call Protection Civile on 14 or 1021.</p>
+    <p>The north is <b>LIVE</b>. The south reads <b>UNAVAILABLE</b>: there are no confirmed southern wildfire labels, so the system shows gray rather than guessing. If the model is unavailable, the verifier fails closed instead of inventing a verdict. NUMIDIA EYE is an independent research prototype, not an official alert system and never a dispatch service — for a real emergency, call Protection Civile on 14 or 1021.</p>
     <h2>Data and sources</h2>
-    <p>Detections: NASA FIRMS VIIRS, via the NUMIDIA EYE API. Map: the project's own wilaya boundaries on a custom map style, no external tile server. Environment: Open-Meteo. Code is MIT; data terms are stated per layer. No site-wide data licence is declared.</p>
+    <p>Detections: NASA FIRMS VIIRS, via the NUMIDIA EYE API. Map: the project's own wilaya boundaries on a custom map style, no external tile server. Environment: Open-Meteo. Code is MIT; data terms are stated per layer. No site-wide data license is declared.</p>
     <h2>What happens next</h2>
     <p>Arabic alerts to wilaya civil protection units, backed by the DGF director's public October 2026 statement that the directorate needs new technologies for early detection, monitoring and rapid intervention. Weather-aware verification and the satellite burn-scar vision track are the post-submission roadmap — the vision prototype (Sentinel-2 dNBR) is already built and tested, and parked until after the October 31 submission.</p>
     <h2>Who built it</h2>

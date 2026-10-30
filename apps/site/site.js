@@ -118,7 +118,7 @@ const T = {
   prioCritical: "critical", prioModerate: "moderate", prioLow: "low",
 
   sourcesNote: "Detections: NASA FIRMS VIIRS via the NUMIDIA API. Map: the project's own wilaya boundaries on a custom map style — no external tile server. Verifier: live-v1 structured-data model, served read-only.",
-  termsNote: "No site-wide data licence is declared. Code MIT. Data terms are stated per layer above.",
+  termsNote: "No site-wide data license is declared. Code MIT. Data terms are stated per layer above.",
   foot: "Independent research prototype. Not affiliated with or endorsed by any government body.",
 };
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -130,7 +130,7 @@ const numOpt = (v, n = 2) => (typeof v === "number" && isFinite(v) ? v.toFixed(n
 const fmt = (iso) => {
   const d = new Date(iso);
   if (isNaN(d)) return T.unavailable;
-  const loc = (typeof UI_LANG !== "undefined" && UI_LANG === "ar") ? "ar-DZ-u-nu-latn" : "en-GB";
+  const loc = (typeof UI_LANG !== "undefined" && UI_LANG === "ar") ? "ar-DZ-u-nu-latn" : "en-US";
   return d.toLocaleString(loc, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 };
 
@@ -206,7 +206,7 @@ function selectedIncidents() {
 /* The incident API exposes no member detection ids, so a tapped cluster is
    matched to the incident whose centroid it covers - and only within
    CLUSTER_MATCH_KM, so a tap can never attach a cluster to a distant incident.
-   With no match the caller keeps the old zoom-in behaviour. */
+   With no match the caller keeps the old zoom-in behavior. */
 const CLUSTER_MATCH_KM = 3;
 function haversineKm(aLat, aLon, bLat, bLon) {
   const R = 6371, rad = Math.PI / 180;
@@ -1434,7 +1434,7 @@ function initMap() {
     const CORE_C = ["interpolate", ["linear"], ["get", "frp"],
       0, "#f5c542", 5, "#f08a24", 15, "#e5484d", 30, "#b71c1c"];
     const CORE_S = "rgba(255,255,255,0.9)";
-    /* --accent in site.css, the palette's selection colour (also the `.sw.sel`
+    /* --accent in site.css, the palette's selection color (also the `.sw.sel`
        legend swatch). */
     const SEL_C = "#2f7fb8";
     map.addLayer({ id: "hist-glow", type: "circle", source: "detections",
@@ -1496,7 +1496,7 @@ function initMap() {
     });
     /* Cluster tap: select the incident it covers. The incident API exposes no
        member detection ids, so the cluster is matched by centroid, within
-       CLUSTER_MATCH_KM. With no match it keeps the old zoom-in behaviour and
+       CLUSTER_MATCH_KM. With no match it keeps the old zoom-in behavior and
        says so, instead of appearing to do nothing. */
     map.on("click", "clu", (e) => {
       try {
@@ -1667,7 +1667,7 @@ function selectIncident(id, opts) {
 /* opts.toggle (default true): a second tap on the same wilaya clears it.
    opts.fly (default true): frame the wilaya. Selection paths pass fly:false so
    their own fly-to is not overwritten by the wilaya bounds - a dot the user
-   tapped used to drift off-centre because both fought over the camera.
+   tapped used to drift off-center because both fought over the camera.
    opts.keepItem (default false): keep the selected incident/detection. Only
    selection paths pass true - a user tapping a wilaya means to leave the
    incident they were looking at. */
@@ -1782,7 +1782,7 @@ function buildWilayaMarkers() {
   syncWilayaLabels();
 }
 
-/* Every wilaya is labelled at every zoom. The previous build hid names below
+/* Every wilaya is labeled at every zoom. The previous build hid names below
    zoom 4.0 and all-but-one while a wilaya was focused, which meant a country-wide
    view showed a handful of names and the other 65 existed only as outlines.
 
@@ -1904,7 +1904,7 @@ async function selectDetection(id, opts) {
     S.detailPhase = "ready";
     if (map && S.detail) {
       /* Focus the detection's wilaya with fly:false: the tap was on a dot, so
-         the dot stays centred instead of being pushed off-screen by the wilaya
+         the dot stays centered instead of being pushed off-screen by the wilaya
          bounds (which used to run right after this flyTo and win). */
       const code = wilayaCodeFromIso(S.detail.wilaya_code);
       if (code != null) focusWilaya(code, { toggle: false, fly: false, keepItem: true });
