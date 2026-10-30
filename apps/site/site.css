@@ -25,6 +25,40 @@
   font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
 }
 
+/* Dark theme (opt-in toggle, default is light). Activated by
+   <html data-theme="dark"> — every surface below reads the same
+   --panel / --text variables, so panels, popups and legend follow. */
+[data-theme="dark"] {
+  --bg: #0e1712;
+  --panel: #16241c;
+  --panel-2: #1d3025;
+  --surface: #1a2c22;
+  --surface-2: #22382c;
+  --border: #2c4536;
+  --border-2: #3d5c49;
+  --text: #e6efe9;
+  --muted: #9db3a8;
+  --pine: #5cc49a;
+  --pine-dim: #24402f;
+  --sand: #d9b36a;
+  --live: #ff5a5f;
+  --hist: #e0a83c;
+  --accent: #6fb7e8;
+  --warn: #e0b84c;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.45), 0 10px 28px rgba(0, 0, 0, 0.4);
+}
+[data-theme="dark"] .legend { background: rgba(22, 36, 28, 0.94); }
+[data-theme="dark"] .mapbtn { background: rgba(22, 36, 28, 0.94); }
+[data-theme="dark"] .mapctl .pill { background: rgba(22, 36, 28, 0.94); }
+[data-theme="dark"] .wil-list li.on { background: #24402f; }
+/* Dark: MapLibre zoom +/- group and scale ruler (were white boxes) */
+[data-theme="dark"] .maplibregl-ctrl-group { background: var(--panel); box-shadow: var(--shadow); }
+[data-theme="dark"] .maplibregl-ctrl-group button { background-color: var(--panel); }
+[data-theme="dark"] .maplibregl-ctrl-group button + button { border-top: 1px solid var(--border); }
+[data-theme="dark"] .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1) brightness(1.2); }
+[data-theme="dark"] .maplibregl-ctrl-scale { background: rgba(22, 36, 28, 0.9); color: #e6efe9; border-color: #e6efe9; }
+
 /* Dark: wilaya list items — dark bg, light text, gold numbers */
 
 
@@ -468,3 +502,54 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
   box-shadow: var(--shadow-lg); position: relative; }
 .modal-close { position: absolute; top: 12px; right: 12px; }
 
+
+.brand-logo { height: 26px; width: auto; flex: 0 0 auto; }
+.brandtext h1 { font-size: 22px; font-weight: 900; letter-spacing: 2.5px; }
+.brandtext .sub { display: none; }
+[data-theme="dark"] .top .brandtext .sub { color: rgba(230,239,233,.7); }
+
+.brand-divider { width: 1px; height: 26px; background: var(--line); opacity: .6; flex: 0 0 auto; }
+
+.tabs { display: flex; gap: 8px; padding: 2px 12px 8px; }
+.top .tabs { padding: 0; margin-left: auto; flex: 0 0 auto; }
+.tabbtn { padding: 8px 18px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel); color: var(--text); font-weight: 700; cursor: pointer; font-size: 14px; }
+.tabbtn.on { background: var(--pine); color: #fff; border-color: var(--pine); }
+.main.tab-incidents .mapwrap, .main.tab-incidents .side { display: none; }
+.main.tab-incidents .rail { width: 100%; max-width: 760px; margin: 0 auto; }
+.tab-about { flex: 1; padding: 12px; overflow-y: auto; }
+.about-panel { max-width: 760px; margin: 0 auto; }
+.about-panel h2 { margin: 18px 0 6px; font-size: 18px; }
+.about-panel h2:first-child { margin-top: 4px; }
+.about-panel p { line-height: 1.6; color: var(--text); }
+
+.main[hidden] { display: none; }
+.main.tab-incidents .rail > section:first-child { display: none; }
+/* Map tab: incidents live only on the Incidents tab, not in the left rail */
+.main:not(.tab-incidents) .rail > section:nth-child(2) { display: none; }
+
+/* Header bar as in the logo sheet: white bar on light, dark-green bar on dark */
+.top { background: var(--panel); border-bottom: none; margin: 10px 12px 0; border-radius: 14px; }
+[data-theme="dark"] .top { background: #14392c; }
+[data-theme="dark"] .top .brandtext h1 { color: #fff; }
+[data-theme="dark"] .top .indep { color: rgba(230,239,233,.75); border-inline-start-color: rgba(230,239,233,.3); }
+[data-theme="dark"] .top .brand-divider { background: rgba(230,239,233,.4); }
+.hdr-icon { display: inline-flex; align-items: center; color: var(--text); opacity: .85; }
+[data-theme="dark"] .top .hdr-icon { color: #fff; }
+
+.top { flex-wrap: nowrap; }
+.top .indep { display: none; }
+.hdr-controls { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.chips { min-width: 0; }
+
+.brand-lockup { height: 46px; width: auto; flex: 0 0 auto; }
+[data-theme="dark"] #brand-lockup { display: none; }
+.brand-lockup-hidden { display: none; }
+
+.chips-strip, #chips { padding: 6px 12px 0; }
+
+#chips[hidden] { display: none; }
+
+.about-brand { text-align: center; margin: 8px 0 20px; }
+.about-logo { max-width: 420px; width: 100%; height: auto; }
+.about-tagline { font-size: 11px; letter-spacing: 2.5px; color: var(--muted); margin: 8px 0 0; }
+[data-theme="dark"] .about-tagline { color: rgba(230,239,233,.7); }

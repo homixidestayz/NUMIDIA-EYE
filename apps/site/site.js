@@ -50,7 +50,7 @@ const FIT = { padding: 42, maxZoom: 9 };
 /* ---------------------------------------------------------------- strings */
 const T = {
   title: "NUMIDIA EYE",
-  sub: "Wildfire intelligence for Algeria — real satellite data only",
+  sub: "AI-POWERED WILDFIRE INTELLIGENCE FOR ALGERIA",
   indep: "Independent research prototype · non-official",
   counting: "A detection is one raw FIRMS thermal pixel. An incident is a spatiotemporal cluster of detections and is not a confirmed fire. Priority is rule-based and never uses model output.",
   wil: "Wilaya", inc: "Incidents & priority", src: "Sources & terms",
@@ -90,6 +90,7 @@ const T = {
   /* environment panel */
   envTitle: "Environment at incident",
   envNone: "Select an incident to load live environmental context.",
+  envEmpty: "Select an incident from the list below to see its live weather conditions.",
   envSrc: "Open-Meteo (keyless) · sampled at incident centroid",
   envSpread: "Cluster spread",
   envSpreadNote: "Sampled at the cluster centroid, not at each detection.",
@@ -116,7 +117,7 @@ const T = {
   scoreLbl: "score",
   prioCritical: "critical", prioModerate: "moderate", prioLow: "low",
 
-  sourcesNote: "Detections: NASA FIRMS VIIRS via the NUMIDIA API. Map: the project's own wilaya boundaries on a custom light style — no external tile server. Verifier: live-v1 structured-data model, served read-only.",
+  sourcesNote: "Detections: NASA FIRMS VIIRS via the NUMIDIA API. Map: the project's own wilaya boundaries on a custom map style — no external tile server. Verifier: live-v1 structured-data model, served read-only.",
   termsNote: "No site-wide data licence is declared. Code MIT. Data terms are stated per layer above.",
   foot: "Independent research prototype. Not affiliated with or endorsed by any government body.",
 };
@@ -129,7 +130,8 @@ const numOpt = (v, n = 2) => (typeof v === "number" && isFinite(v) ? v.toFixed(n
 const fmt = (iso) => {
   const d = new Date(iso);
   if (isNaN(d)) return T.unavailable;
-  return d.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const loc = (typeof UI_LANG !== "undefined" && UI_LANG === "ar") ? "ar-DZ-u-nu-latn" : "en-GB";
+  return d.toLocaleString(loc, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 };
 
 /* ---------------------------------------------------------------- state */
@@ -286,7 +288,7 @@ function renderEnv() {
   }
 
   if (S.envPhase === "idle") {
-    slot.innerHTML = `<div class="card env-empty"><p class="note">Select an incident from the list below<br>to see its live weather conditions.</p></div>`; return;
+    slot.innerHTML = `<div class="card env-empty"><p class="note">${esc(T.envEmpty)}</p></div>`; return;
   }
   if (S.envPhase === "loading") {
     slot.innerHTML = `<div class="card"><p class="note">${esc(T.loading)}</p></div>`; return;
@@ -417,6 +419,17 @@ function renderStats() {
 }
 
 /* ---------------------------------------------------------------- wilaya */
+function wilDisplayName(w) {
+  return (w && typeof UI_LANG !== "undefined" && UI_LANG === "ar" && w.nameAr) ? w.nameAr : (w ? w.name : "");
+}
+function apiWilName(name) {
+  if (typeof UI_LANG === "undefined" || UI_LANG !== "ar" || !name) return name;
+  try {
+    const code = wilayaCodeForName(name, S.wilayaByName);
+    const w = code ? S.wilayaByCode[String(code)] : null;
+    return (w && w.nameAr) ? w.nameAr : name;
+  } catch (e) { return name; }
+}
 function renderWilaya() {
   const body = document.getElementById("wil-body");
   const cnt = document.getElementById("wil-count");
@@ -438,12 +451,12 @@ function renderWilaya() {
     const maxFrp = ds.reduce((m, x) => Math.max(m, typeof x.frp === "number" ? x.frp : 0), 0);
     const incInWil = selectedIncidents().length;
     return `<div class="wil-hero">
-      <span class="wil-name">${esc(w.name)}</span>
+      <span class="wil-name">${esc(wilDisplayName(w))}</span>
       <span class="wil-meta">${esc(T.wilaya)} ${esc(w.code)} · ${ds.length} ${esc(T.det)} ${esc(T.loaded)} · ${incInWil} ${esc(T.incN)}</span>
       <div class="wil-grid">
         <div class="wil-cell live"><b>${live}</b><span>${esc(T.live)}</span></div>
-        <div class="wil-cell"><b>${ds.length - live}</b><span>HISTORICAL</span></div>
-        <div class="wil-cell"><b>${maxFrp.toFixed(1)}</b><span>MAX FRP MW</span></div>
+        <div class="wil-cell"><b>${ds.length - live}</b><span>${esc(UI_LANG === "ar" ? "تاريخي" : "HISTORICAL")}</span></div>
+        <div class="wil-cell"><b>${maxFrp.toFixed(1)}</b><span>${esc(UI_LANG === "ar" ? "أقصى قدرة إشعاعية" : "MAX FRP MW")}</span></div>
         <div class="wil-cell"><b>${new Set(ds.map((x) => x.satellite).filter(Boolean)).size}</b><span>${esc(T.sats)}</span></div>
       </div>
       <div class="rulebox">${esc(T.counting)}</div>
@@ -456,7 +469,7 @@ function renderWilaya() {
         const pct = Math.max(6, Math.round((r.n / maxN) * 100));
         const on = String(r.w.code) === String(S.wilaya);
         return `<li data-wil="${esc(r.w.code)}" class="${on ? "on" : ""}">
-          <span class="n">${esc(r.w.name)}</span>
+          <span class="n">${esc(wilDisplayName(r.w))}</span>
           <span class="bar"><i style="width:${pct}%"></i></span>
           <span class="v">${r.n}</span></li>`;
       }).join("")}</ul>
@@ -468,7 +481,7 @@ function renderWilaya() {
   if (S.wilaya && S.wilayaByCode[String(S.wilaya)]) {
     const w = S.wilayaByCode[String(S.wilaya)];
     hud.hidden = false;
-    hud.innerHTML = `<b>${esc(w.name)}</b><span>${esc(T.focus)}</span>`;
+    hud.innerHTML = `<b>${esc(wilDisplayName(w))}</b><span>${esc(T.focus)}</span>`;
     reset.hidden = false;
   } else { hud.hidden = true; reset.hidden = true; }
 }
@@ -489,7 +502,7 @@ function renderChain() {
       v: aiServed ? (S.ai.model || T.aiModel) : (S.aiPhase === "loading" ? T.loading : "—"),
       s: aiServed ? "ready" : "idle" },
     { n: T.what, h: `${T.where} · ${T.signal}`,
-      v: S.detailPhase === "ready" ? `${orUn(S.detail.wilaya_name)} · ${numOpt(S.detail.frp, 1)} MW` : "—",
+      v: S.detailPhase === "ready" ? `${orUn(apiWilName(S.detail.wilaya_name))} · ${numOpt(S.detail.frp, 1)} MW` : "—",
       s: S.detailPhase === "ready" ? "ready" : "idle" },
     { n: T.prioTitle, h: "priority-v1",
       v: S.incPhase === "error" ? T.unavailable
@@ -499,13 +512,7 @@ function renderChain() {
       v: S.reportPhase === "ready" ? T.reportTitle : "—",
       s: S.reportPhase === "ready" ? "ready" : "idle" },
   ];
-  const done = stages.filter((s) => s.s === "ready").length;
-  const pct = Math.round((done / stages.length) * 100);
   document.getElementById("flow").innerHTML = `
-    <div class="flow-progress" aria-label="pipeline ${pct}% complete">
-      <span class="flow-fill" style="width:${pct}%"></span>
-      <span class="flow-txt">${done}/${stages.length} ${esc(T.chainReady)}</span>
-    </div>
     ${stages.map((s, i) => `
       <li class="flow-node ${s.s}">
         <span class="flow-idx">${i + 1}</span>
@@ -563,14 +570,17 @@ function renderIncidents() {
     const scorePct = score === null ? 0 : Math.max(0, Math.min(100, score * 100));
     const dl = d => (new Date(d)).getTime();
     const ageH = (dl(Date.now()) - dl(inc.last_acq)) / 3600000;
-    const ageTxt = ageH < 1 ? `${Math.max(1, Math.round(ageH * 60))}m ago`
-      : ageH < 24 ? `${ageH.toFixed(1)}h ago` : `${Math.round(ageH / 24)}d ago`;
+    const ageTxt = UI_LANG === "ar"
+      ? (ageH < 1 ? `قبل ${Math.max(1, Math.round(ageH * 60))} دقيقة`
+        : ageH < 24 ? `قبل ${ageH.toFixed(1)} ساعة` : `قبل ${Math.round(ageH / 24)} يوم`)
+      : (ageH < 1 ? `${Math.max(1, Math.round(ageH * 60))}m ago`
+        : ageH < 24 ? `${ageH.toFixed(1)}h ago` : `${Math.round(ageH / 24)}d ago`);
     const wilas = (inc.wilayas || []);
     const liveInc = inc.verification && inc.verification.status === "available";
     const isSel = S.sel.incidentId === inc.id;
     return `<li class="inc ${level}${isSel ? " sel" : ""}" data-inc-id="${esc(inc.id)}">
       <div class="inc-top">
-        <span class="prio-badge ${level}">${esc(orUn(p.level))}</span>
+        <span class="prio-badge ${level}">${esc(orUn(level === "critical" ? T.prioCritical : level === "moderate" ? T.prioModerate : level === "low" ? T.prioLow : p.level))}</span>
         <span class="score" title="${esc(T.scoreLbl)}">
           <i style="width:${scorePct}%"></i>
           <b>${score === null ? T.unavailable : score.toFixed(4)}</b>
@@ -578,7 +588,7 @@ function renderIncidents() {
       </div>
       <div class="inc-title">
         <b>${inc.detection_count} ${esc(T.det)}</b>
-        ${wilas.length ? `<span class="wilas">${esc(wilas.slice(0, 3).join(", "))}${wilas.length > 3 ? ` +${wilas.length - 3}` : ""}</span>` : ""}
+        ${wilas.length ? `<span class="wilas">${esc(wilas.slice(0, 3).map((w) => apiWilName(w)).join(", "))}${wilas.length > 3 ? ` +${wilas.length - 3}` : ""}</span>` : ""}
       </div>
       <div class="inc-meta">
         <span>${esc(fmt(inc.last_acq))}</span>
@@ -588,7 +598,7 @@ function renderIncidents() {
         <span>${esc(T.frp)} <b>${esc(inc.max_frp)} MW</b></span>
         ${inc.satellites?.length ? `<span>${esc(inc.satellites.join(" · "))}</span>` : ""}
       </div>
-      <div class="inc-persist">${esc(T.when)} ${esc(inc.persistence_hours != null ? `${Number(inc.persistence_hours).toFixed(1)}h` : T.unavailable)}</div>
+      <div class="inc-persist">${esc(T.when)} ${esc(inc.persistence_hours != null ? `${Number(inc.persistence_hours).toFixed(1)}${UI_LANG === "ar" ? " ساعة" : "h"}` : T.unavailable)}</div>
       <div class="acts">
         <button class="lbtn-s" data-act="expand" data-id="${esc(inc.id)}">${esc(T.prioTitle)}</button>
         <button class="lbtn-s" data-act="report" data-id="${esc(inc.id)}">${esc(T.reportOpen)}</button>
@@ -684,7 +694,7 @@ let AI_LANG = "en";
 const UI_T = {
   en: {
     title: "NUMIDIA EYE",
-    sub: "Wildfire intelligence for Algeria — real satellite data only",
+    sub: "AI-POWERED WILDFIRE INTELLIGENCE FOR ALGERIA",
     indep: "Independent research prototype · non-official",
     wil: "Wilaya",
     inc: "Incidents & priority",
@@ -696,7 +706,7 @@ const UI_T = {
   },
   ar: {
     title: "عين نوميديا",
-    sub: "معلومات حرائق الغابات في الجزائر — بيانات أقمار صناعية حقيقية فقط",
+    sub: "ذكاء اصطناعي لمراقبة حرائق الغابات في الجزائر",
     indep: "نموذج بحثي مستقل · غير رسمي",
     wil: "الولاية",
     inc: "الحوادث والأولوية",
@@ -726,6 +736,7 @@ const UI_T = {
     aiResult: "النتيجة",
     envTitle: "البيئة عند الحادث",
     envNone: "اختر حادثًا لتحميل السياق البيئي المباشر.",
+    envEmpty: "اختر حادثًا من القائمة أدناه لرؤية ظروفه الجوية المباشرة.",
     envTemp: "الحرارة",
     envRh: "الرطوبة",
     envWind: "الرياح",
@@ -737,9 +748,104 @@ const UI_T = {
     detErr: "تعذّر تحميل هذه الكشوفة من الواجهة البرمجية.",
     detErrRetry: "تحقق من تشغيل الواجهة البرمجية ثم اضغط على نقطة الحرائق مرة أخرى.",
     cluNoIncident: "لا يوجد حادث ضمن 3 كم من هذه المجموعة — يتم التكبير.",
+    counting: "الكشف هو بكسل حراري خام من FIRMS. الحادث هو تجمّع مكاني-زماني للكشوفات وليس حريقًا مؤكدًا. الأولوية قائمة على قواعد ثابتة ولا تستخدم مخرجات النموذج أبدًا.",
+    loaded: "في النافذة المحمّلة",
+    firms: "FIRMS/VIIRS",
+    ai: "مدقّق الذكاء الاصطناعي",
+    db: "قاعدة البيانات",
+    state: "حالة البيانات",
+    incErr: "بيانات الحوادث غير متوفرة",
+    incEmpty: "لا توجد حوادث مجمّعة من الكشوفات المخزّنة",
+    what: "ماذا",
+    where: "أين",
+    when: "متى",
+    source: "المصدر",
+    signal: "الإشارة",
+    detState: "حالة الكشف",
+    lat: "خط العرض",
+    lon: "خط الطول",
+    ti4: "السطوع TI4 (كلفن)",
+    ti5: "السطوع TI5 (كلفن)",
+    aiVerifying: "جارٍ التحقق…",
+    aiExp: "مباشر",
+    aiProb: "الاحتمال",
+    aiThr: "العتبة",
+    aiSchema: "مخطط الميزات",
+    aiScope: "مدقّق تجريبي منظم لبيانات الأقمار الصناعية. ليس كاشف حرائق غابات جزائرية معتمدًا: ملصقات التدريب لا تحتوي على أي حالة حريق مؤكدة مستقلة في جنوب الجزائر، والفئة السلبية تتكوّن أساسًا من مشاعل غاز موثّقة.",
+    prioTitle: "الأولوية — قائمة على القواعد",
+    prioNotAI: "priority-v1 حتمي وقائم على قواعد ثابتة. ليس مدقّق الذكاء الاصطناعي ولا يستخدم مخرجات النموذج أبدًا.",
+    prioMissing: "لا توجد مجموعة بيانات — لا تساهم بشيء: ",
+    incVerif: "أدلة الذكاء الاصطناعي على مستوى الحادث",
+    incVerifNote: "«غير متوفر» هنا تعني أنه لم تُحسب أدلة على مستوى الحادث — ولا تعني أن المدقّق معطّل.",
+    reportOpen: "فتح تقرير الحادث",
+    reportClose: "إغلاق التقرير",
+    reportTitle: "تقرير الحادث",
+    reportLims: "القيود",
+    reportSources: "مصادر البيانات",
+    reportProto: "تقرير مولّد من النموذج الأولي. ليس إنذارًا رسميًا ولم يُرسل إلى الحماية المدنية.",
+    emergency: "طوارئ الحماية المدنية: 14 (أو 1021). معلومات مرجعية فقط — عين نوميديا ليست خدمة إرسال فرق أبدًا.",
+    envSrc: "Open-Meteo (بدون مفتاح) · مأخوذة عند مركز الحادث",
+    envSpread: "انتشار التجمّع",
+    envSpreadNote: "مأخوذة عند مركز التجمّع، وليس عند كل كشف.",
+    envSoil: "التربة 0–1 سم",
+    envSoilDeep: "التربة 3–9 سم",
+    envSoilT: "حرارة التربة",
+    envObs: "مرصود",
+    envElev: "الارتفاع",
+    envDown: "الرياح قادمة من هذا الاتجاه. الحرائق تنتشر مع اتجاه الرياح.",
+    envModelNote: "أسهم الرياح مُمثلة من رياح مباشرة، وليست نموذج انتشار حرائق.",
+    envIsModelled: "ليس نموذج انتشار",
+    vulTitle: "قابلية الاحتراق",
+    vulNote: "النطاقات تصف ظروفًا مقاسة. ليست درجة خطر حريق ولا يُستنتج منها أي حكم.",
+    vulLow: "أدنى",
+    vulHigh: "أعلى",
+    vulRH: "الرطوبة",
+    vulSoil: "رطوبة التربة",
+    vulWind: "الرياح",
+    vulFrp: "القدرة الإشعاعية",
+    vulDry: "جاف",
+    vulMoist: "رطب",
+    vulShallow: "وقود سطحي",
+    vulDeep: "وقود عميق",
+    vulStrong: "قوية",
+    vulCalm: "هادئة",
+    vulIntense: "شديدة",
+    chainReady: "مراحل جاهزة",
+    wilBar: "كشوفات مقارنة بالولاية الأكثر نشاطًا",
+    scoreLbl: "النتيجة",
+    prioCritical: "حرج",
+    prioModerate: "متوسط",
+    prioLow: "منخفض",
+    sourcesNote: "الكشوفات: NASA FIRMS VIIRS عبر واجهة NUMIDIA API. الخريطة: حدود الولايات الخاصة بالمشروع بأسلوب خريطة مخصص — بدون خادم بلاطات خارجي. المدقّق: نموذج live-v1 منظم البيانات، يُعرض للقراءة فقط.",
+    termsNote: "لم يُعلن عن أي ترخيص بيانات عام للموقع. الكود MIT. شروط البيانات مذكورة لكل طبقة أعلاه.",
   },
 };
 
+const ABOUT_AR = `<div class="about-brand">
+      <img class="about-logo" id="about-logo" src="./logo-lockup-light.png" alt="NUMIDIA EYE logo" />
+      <p class="about-tagline">ذكاء اصطناعي لمراقبة حرائق الغابات في الجزائر</p>
+    </div>
+    <h2>ما هو المشروع</h2>
+    <p>عين نوميديا هي إنذار الجزائر للحرائق، من الفضاء. تحوّل كشوفات الحرائق الحية من أقمار ناسا الصناعية إلى معلومات موثّقة وقابلة للتنفيذ لكل ولاية — فيصبح البكسل الحار في صورة قمر صناعي حكمًا وحادثًا ومكانًا على الخريطة، لا مجرد نقطة.</p>
+    <h2>المشكلة</h2>
+    <p>تُرصد حرائق الغابات في الجزائر عبر الأقمار الصناعية، لكن لا أحد يحوّل تلك الكشوفات إلى معلومات موثّقة. الكشوفات الخام تخلط الحرائق الحقيقية بمشاعل الغاز والحرارة الصناعية والضجيج — والإنذار الكاذب خطير بقدر خطورة الحريق الفائت. وُجدت عين نوميديا لتفصل بين الاثنين، بصدق، قبل أن يتحرك أحد بناءً على إشارة.</p>
+    <h2>كل عام، تحترق الجزائر</h2>
+    <p>كل صيف، تعود القصة نفسها. الحرارة والجفاف والرياح تحوّل غابات الشمال — منطقة القبائل، الأطلس التلي، الولايات الساحلية — إلى وقود، وتعود الحرائق عامًا بعد عام. القرى مهددة، وتُفقد البيوت وبساتين الزيتون والغابات، وفرق الحماية المدنية منهكة على جبهات كثيرة في آن واحد. ليست كارثة عابرة؛ إنه موسم تعيشه الجزائر، مرارًا وتكرارًا.</p>
+    <p>لهذا يهمّ الكشف المبكر كثيرًا. الحريق الذي يُرصد قبل ساعات هو حريق ما زال بالإمكان احتواؤه قبل أن يصل إلى قرية أو يعبر طريقًا. والحريق الذي يُرصد متأخرًا أصبح إنقاذًا. وُجدت عين نوميديا لهذه الفجوة: أن ترى الحريق من الفضاء، وتتحقق منه بصدق، وتضعه على الخريطة بينما ما زال هناك وقت للتحرك.</p>
+    <h2>كيف يعمل</h2>
+    <p><b>1. الكشف.</b> تُستقبل كشوفات FIRMS VIIRS الحرارية من ناسا كل 30 دقيقة وتُعرض مباشرة على الخريطة. الكشف هو بكسل قمر صناعي خام واحد؛ اللون يعني القدرة الإشعاعية للحرائق (FRP).</p>
+    <p><b>2. التجميع.</b> الكشوفات القريبة في المكان والزمان تُجمّع في حوادث — تجمّع مكاني-زماني، وليس حريقًا مؤكدًا. الأولوية قائمة على قواعد ثابتة ولا تستخدم مخرجات النموذج أبدًا.</p>
+    <p><b>3. التحقق.</b> يُفحص كل كشف بمدقّق غابة عشوائية (random forest) مدرّب على 12,847 كشفًا موسومًا، باستخدام 10 ميزات من الأقمار الصناعية: درجات حرارة السطوع، القدرة الإشعاعية، الثقة، فرق السطوع، هندسة المسح ومعرّف القمر الصناعي. يخرج <b>FIRE</b> أو <b>NON_FIRE</b> أو <b>UNCERTAIN</b>، مع نتيجة النموذج. على بيانات 2026 المحجوزة للاختبار، بلغت الدقة 94% والاستدعاء 81%، بصياغة صادقة كفصل بين الحريق ومشعل الغاز: الفئة غير الحريقية هي أساسًا مشاعل غاز.</p>
+    <p><b>4. الفهم.</b> اضغط على أي نقطة للحصول على بطاقة حكم الذكاء الاصطناعي وشرحها. افتح تقرير حادث للحصول على الصورة الكاملة. لوحة البيئة (الرياح والحرارة والجفاف من Open-Meteo) هي سياق بشري فقط — ولا تدخل أبدًا في حكم الذكاء الاصطناعي.</p>
+    <h2>حدود صادقة</h2>
+    <p>الشمال <b>مباشر (LIVE)</b>. الجنوب يقرأ <b>غير متوفر (UNAVAILABLE)</b>: لا توجد ملصقات حرائق مؤكدة في الجنوب، لذلك يعرض النظام اللون الرمادي بدل التخمين. وإذا كان النموذج غير متوفر، يفشل المدقّق مغلقًا بدل اختراع حكم. عين نوميديا نموذج بحثي مستقل، وليست نظام إنذار رسميًا ولا خدمة إرسال فرق أبدًا — في حالة طوارئ حقيقية، اتصل بالحماية المدنية على 14 أو 1021.</p>
+    <h2>البيانات والمصادر</h2>
+    <p>الكشوفات: NASA FIRMS VIIRS، عبر واجهة NUMIDIA EYE API. الخريطة: حدود الولايات الخاصة بالمشروع بأسلوب خريطة مخصص، بدون خادم بلاطات خارجي. البيئة: Open-Meteo. الكود MIT؛ شروط البيانات مذكورة لكل طبقة. لم يُعلن عن أي ترخيص بيانات عام للموقع.</p>
+    <h2>ما بعد ذلك</h2>
+    <p>تنبيهات بالعربية إلى وحدات الحماية المدنية في الولايات، مدعومة بتصريح مدير المديرية العامة للغابات العلني في أكتوبر 2026 بأن المديرية تحتاج تقنيات جديدة للكشف المبكر والمراقبة والتدخل السريع. التحقق الواعي بالطقس ومسار الرؤية لندوب الحروق عبر الأقمار الصناعية هما خارطة ما بعد التقديم — النموذج الأولي للرؤية (Sentinel-2 dNBR) مبني ومختبر أصلًا، وموقوف حتى بعد تقديم 31 أكتوبر.</p>
+    <h2>من بناه</h2>
+    <p>بناه BOUCIF MOHAMED HOUSSEM EDDINE — بنى كل شيء: خط أنابيب البيانات، الواجهة البرمجية، مدقّق الذكاء الاصطناعي، لوحة التحكم، العرض التقديمي — مع Imen Benelhadj Djelloul (جلبت بيانات الحرائق)، وSofiane Khelfaoui (مستشار الحماية المدنية)، وAmir Boughomd (مختبر تطبيقات الويب وأخصائي ذكاء اصطناعي)، وMilissa Temam (مسار الرؤية: نموذج التحقق من ندوب الحروق عبر الأقمار الصناعية، أخصائية ذكاء اصطناعي).</p>`;
+let ABOUT_EN = null;
 /* Apply UI_LANG to all translatable elements + set AI_LANG + RTL. */
 /* Snapshot of original English strings for language switching. */
 const T_EN = Object.assign({}, T);
@@ -760,6 +866,31 @@ function applyLang() {
   set("t-env", T2.env);
   set("t-src", T2.src);
   set("t-foot", T2.foot);
+  document.querySelectorAll(".tabbtn").forEach((b) => {
+    const labels = UI_LANG === "ar"
+      ? { map: "الخريطة", incidents: "الحوادث", about: "حول المشروع" }
+      : { map: "Map", incidents: "Incidents", about: "About" };
+    if (labels[b.dataset.tab]) b.textContent = labels[b.dataset.tab];
+  });
+  const bn = document.getElementById("btn-names");
+  if (bn) bn.textContent = UI_LANG === "ar" ? "الأسماء" : "Names";
+  const ba = document.getElementById("btn-allnames");
+  if (ba) ba.textContent = UI_LANG === "ar" ? "كل الأسماء" : "All names";
+  const lt = document.querySelector(".legend-title");
+  if (lt) lt.textContent = UI_LANG === "ar" ? "القدرة الإشعاعية للحرائق" : "Fire Radiative Power";
+  const lis = document.querySelectorAll(".legend .li");
+  if (lis[4]) { const sp = lis[4].querySelector("span"); if (sp) sp.textContent = UI_LANG === "ar" ? "الكشف (اللون = FRP) — اضغط لحكم الذكاء الاصطناعي" : "Detection (color = FRP) — tap for AI verdict"; }
+  if (lis[5]) { const sp = lis[5].querySelector("span"); if (sp) sp.textContent = UI_LANG === "ar" ? "حدود الولاية - اضغط للتركيز" : "Wilaya boundary - click to focus"; }
+  const rb = document.getElementById("reset-wil");
+  if (rb) rb.textContent = T.reset;
+  const aboutPanel = document.querySelector("#tab-about .about-panel");
+  if (aboutPanel) {
+    if (!ABOUT_EN) ABOUT_EN = aboutPanel.innerHTML;
+    aboutPanel.innerHTML = UI_LANG === "ar" ? ABOUT_AR : ABOUT_EN;
+    const al = document.getElementById("about-logo");
+    if (al) al.src = document.documentElement.getAttribute("data-theme") === "dark" ? "./logo-lockup-dark.png" : "./logo-lockup-light.png";
+  }
+  if (typeof map !== "undefined" && map && typeof buildWilayaMarkers === "function") { try { buildWilayaMarkers(); } catch (e) {} }
   const btn = document.getElementById("lang-toggle");
   if (btn) btn.textContent = T2.toggle;
   document.documentElement.lang = UI_LANG === "ar" ? "ar" : "en";
@@ -770,6 +901,10 @@ function applyLang() {
   if (typeof renderAi === "function") renderAi();
   if (typeof renderWilaya === "function") renderWilaya();
   if (typeof renderIncidents === "function") renderIncidents();
+  if (typeof renderSources === "function") renderSources();
+  if (typeof renderChain === "function") renderChain();
+  if (typeof renderStats === "function") renderStats();
+  if (typeof renderEnv === "function") renderEnv();
 }
 
 const AI_X = {
@@ -1052,7 +1187,7 @@ function renderDetail() {
       <span class="pill${live ? " live" : ""}">${esc(live ? `\u25cf ${T.live}` : (d.state || T.unavailable))}</span>
     </div>
     <div class="wil-hero">
-      <span class="wil-name">${esc(orUn(d.wilaya_name))}</span>
+      <span class="wil-name">${esc(orUn(apiWilName(d.wilaya_name)))}</span>
       <span class="wil-meta">${esc(fmt(d.acq_datetime))} \u00b7 ${esc(orUn(d.source))} \u00b7 ${esc(orUn(d.satellite))}</span>
       <div class="wil-grid">
         ${cell(typeof d.frp === "number" ? `${d.frp.toFixed(1)} MW` : esc(T.unavailable), T.frp)}
@@ -1153,7 +1288,7 @@ function frpColor(frp) {
 function hoverRow(p) {
   const frp = typeof p.frp === "number" ? `${p.frp.toFixed(1)} MW` : T.unavailable;
   return `<div class="hp"><div class="hp-h">
-      <b>${esc(p.wilaya_name || T.unavailable)}</b>
+      <b>${esc(apiWilName(p.wilaya_name) || T.unavailable)}</b>
       <span class="hp-frp" style="color:${frpColor(p.frp)}">${esc(frp)}</span>
     </div>
     <div class="hp-r"><span>${esc(p.satellite || T.unavailable)}</span><span>${esc(fmt(p.acq_datetime))}</span></div>
@@ -1276,6 +1411,7 @@ function initMap() {
       paint: { "line-color": "#8fa89a", "line-width": 0.9, "line-opacity": 0.9 } });
     map.addLayer({ id: "wil-active-line", type: "line", source: "wilayas", filter: ["==", ["get", "on"], true],
       paint: { "line-color": "#2f6b53", "line-width": 2, "line-opacity": 1 } });
+    applyThemeMap();
     /* No symbol layers here on purpose: the blank style carries no `glyphs`
        endpoint, and adding one would reintroduce an external dependency. Text
        is drawn as local DOM markers instead — crisper, and still offline. */
@@ -1638,7 +1774,7 @@ function buildWilayaMarkers() {
     if (!anchor) continue;
     const el = document.createElement("div");
     el.className = "wlabel";
-    el.textContent = w.name;
+    el.textContent = wilDisplayName(w);
     const mk = new maplibregl.Marker({ element: el, anchor: "center" })
       .setLngLat(anchor).addTo(map);
     wilayaMarkers.set(String(w.code), mk);
@@ -1695,7 +1831,7 @@ function syncWilayaLabels() {
   const cnt = document.getElementById("name-count");
   if (cnt) {
     cnt.textContent = S.showNames
-      ? (S.forceAllNames ? `${S.wilayas.length} names` : `${placed.length}/${S.wilayas.length} names`)
+      ? (S.forceAllNames ? `${S.wilayas.length} ${UI_LANG === "ar" ? "اسمًا" : "names"}` : `${placed.length}/${S.wilayas.length} ${UI_LANG === "ar" ? "اسمًا" : "names"}`)
       : "";
   }
 }
@@ -1744,7 +1880,7 @@ function popupNode(d) {
   };
   row(T.frp, typeof d.frp === "number" ? `${d.frp.toFixed(1)} MW` : T.unavailable);
   row(T.conf, d.confidence == null ? T.unavailable : `${Math.round(d.confidence * 100)}%`);
-  row(T.wilaya, orUn(d.wilaya_name));
+  row(T.wilaya, orUn(apiWilName(d.wilaya_name)));
   row(T.acq, fmt(d.acq_datetime));
   row(T.sat, orUn(d.satellite));
   const p = document.createElement("div"); p.className = "pid"; p.textContent = d.detection_id;
@@ -1774,7 +1910,7 @@ async function selectDetection(id, opts) {
       if (code != null) focusWilaya(code, { toggle: false, fly: false, keepItem: true });
       map.flyTo({ center: [S.detail.lon, S.detail.lat], zoom: Math.max(map.getZoom(), 7) });
       if (popup) popup.remove();
-      popup = new maplibregl.Popup({ closeButton: false, maxWidth: "260px", offset: 12 })
+      popup = new maplibregl.Popup({ closeButton: false, maxWidth: "260px", offset: 12, className: "hpop" })
         .setLngLat([S.detail.lon, S.detail.lat]).setDOMContent(popupNode(S.detail)).addTo(map);
     }
   } catch (err) {
@@ -1946,8 +2082,45 @@ document.getElementById("lang-toggle").addEventListener("click", () => {
   applyLang();
 });
 
-/* Light mode only. */
-document.documentElement.removeAttribute("data-theme");
+/* Theme toggle: light is the default (the pitch design); dark is opt-in
+   and remembered in localStorage. Map paints follow the theme. */
+function applyThemeMap() {
+  if (!map || !map.getLayer) return;
+  const dark = document.documentElement.getAttribute("data-theme") === "dark";
+  try {
+    if (map.getLayer("background")) map.setPaintProperty("background", "background-color", dark ? "#0e1712" : "#eef2f0");
+    if (map.getLayer("wil-fill")) map.setPaintProperty("wil-fill", "fill-color", dark ? "#1e3a2d" : "#dcebe2");
+    if (map.getLayer("wil-line")) map.setPaintProperty("wil-line", "line-color", dark ? "#3a5a4a" : "#8fa89a");
+    if (map.getLayer("wil-active-line")) map.setPaintProperty("wil-active-line", "line-color", dark ? "#7fd6a8" : "#2f6b53");
+  } catch (e) { /* map not ready yet; re-applied on next toggle */ }
+}
+function applyTheme(theme) {
+  if (theme === "dark") document.documentElement.setAttribute("data-theme", "dark");
+  else document.documentElement.removeAttribute("data-theme");
+  try { localStorage.setItem("numidia-theme", theme); } catch (e) {}
+  const btn = document.getElementById("theme-toggle");
+  if (btn) btn.textContent = theme === "dark" ? "☀️" : "🌙";
+  const logo = document.getElementById("brand-logo");
+  const lockup = document.getElementById("brand-lockup");
+  const lockupDark = document.getElementById("brand-lockup-dark");
+  const divider = document.querySelector(".brand-divider");
+  const brandtext = document.querySelector(".brandtext");
+  if (logo) logo.hidden = true;
+  if (lockup) lockup.hidden = theme === "dark";
+  if (lockupDark) lockupDark.hidden = theme !== "dark";
+  const aboutLogo = document.getElementById("about-logo");
+  if (aboutLogo) aboutLogo.src = theme === "dark" ? "./logo-lockup-dark.png" : "./logo-lockup-light.png";
+  if (divider) divider.hidden = true;
+  if (brandtext) brandtext.hidden = true;
+  applyThemeMap();
+}
+let savedTheme = "light";
+try { savedTheme = localStorage.getItem("numidia-theme") || "light"; } catch (e) {}
+applyTheme(savedTheme);
+document.getElementById("theme-toggle").addEventListener("click", () => {
+  const dark = document.documentElement.getAttribute("data-theme") === "dark";
+  applyTheme(dark ? "light" : "dark");
+});
 
 /* Inspection handle: a top-level `const` is invisible from the console or an
    automation driver, so state and the real actions are published here. */
@@ -1982,3 +2155,23 @@ function showBriefingModal(html) {
   document.getElementById("briefing-modal-content").innerHTML = html;
   modal.style.display = "flex";
 }
+/* Tabs: Map / Incidents / About (test build, Oct 30) */
+(function () {
+  const main = document.querySelector(".main");
+  const flow = document.querySelector(".flow");
+  const about = document.getElementById("tab-about");
+  const btns = Array.from(document.querySelectorAll(".tabbtn"));
+  if (!main || !about || !btns.length) return;
+  function setTab(tab) {
+    btns.forEach(b => { const on = b.dataset.tab === tab; b.classList.toggle("on", on); b.setAttribute("aria-selected", on ? "true" : "false"); });
+    if (flow) flow.hidden = tab !== "map";
+    main.hidden = tab === "about";
+    about.hidden = tab !== "about";
+    main.classList.toggle("tab-incidents", tab === "incidents");
+    if (tab === "map") {
+      requestAnimationFrame(() => { try { const m = window.NUMIDIA_EYE && window.NUMIDIA_EYE.map(); if (m) m.resize(); } catch (e) {} });
+    }
+  }
+  btns.forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
+  window.NUMIDIA_EYE.setTab = setTab;
+})();
