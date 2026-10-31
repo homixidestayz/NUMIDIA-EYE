@@ -113,7 +113,7 @@ h1 { margin: 0; font-size: 18px; letter-spacing: 1.2px; font-weight: 800; }
 .lbtn:hover { border-color: var(--accent); box-shadow: var(--shadow); }
 
 /* ── chain ──────────────────────────────────────────────────── */
-.flow { padding: 8px 20px; background: var(--panel); border-bottom: 1px solid var(--border); }
+.flow { padding: 8px 20px; margin-top: 10px; background: var(--panel); border-bottom: 1px solid var(--border); }
 .flow-track { list-style: none; margin: 0; padding: 0; display: flex; }
 .flow-node { display: flex; align-items: center; gap: 9px; flex: 1 1 0; min-width: 0;
   padding-inline-end: 12px; }
