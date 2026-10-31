@@ -1581,7 +1581,9 @@ function pushDetections() {
   src.setData({ type: "FeatureCollection", features: shown().map((d) => ({
     type: "Feature", geometry: { type: "Point", coordinates: [d.lon, d.lat] },
     properties: { id: d.detection_id, state: d.state, sel: d.detection_id === selId,
-      frp: typeof d.frp === "number" && isFinite(d.frp) ? d.frp : 0 },
+      frp: typeof d.frp === "number" && isFinite(d.frp) ? d.frp : 0,
+      wilaya_name: d.wilaya_name, satellite: d.satellite, acq_datetime: d.acq_datetime,
+      confidence: typeof d.confidence === "number" ? d.confidence : null },
   })) });
 }
 
