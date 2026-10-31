@@ -12,6 +12,32 @@ In August 2026, Algeria lost 12 lives and saw 54 injured in a single day of wild
 
 Bilingual dashboard (English/العربية): live detections, AI-verified incidents, priority ranking.
 
+## About
+
+### Every year, Algeria burns
+
+Every summer, the same story comes back. Heat, drought and wind turn the forests of the north — Kabylia, the Tell Atlas, the coastal wilayas — into tinder, and fires return year after year. Villages are threatened, homes and olive groves and forests are lost, and civil protection teams are stretched across many fronts at once. It is not a one-off disaster; it is a season Algeria lives through, again and again.
+
+That is why early detection matters so much. A fire spotted hours earlier is a fire that can still be contained before it reaches a village or jumps a road. A fire spotted late is already a rescue. NUMIDIA EYE exists for that gap: to see the fire from space, verify it honestly, and put it on the map while there is still time to act.
+
+### Understand
+
+Tap any dot for the AI verdict card and its explanation. Open an incident report for the full picture. The environment panel (wind, heat, dryness from Open-Meteo) is human context only — it never feeds the AI verdict.
+
+Detections close in space and time are grouped into incidents — a spatiotemporal cluster, not a confirmed fire. Priority is rule-based and never uses model output.
+
+### Honest limits
+
+The north is **LIVE**. The south reads **UNAVAILABLE**: there are no confirmed southern wildfire labels, so the system shows gray rather than guessing. If the model is unavailable, the verifier fails closed instead of inventing a verdict. NUMIDIA EYE is an independent research prototype, not an official alert system and never a dispatch service — for a real emergency, call Protection Civile on 14 or 1021.
+
+### Data and sources
+
+Detections: NASA FIRMS VIIRS, via the NUMIDIA EYE API. Map: the project's own wilaya boundaries on a custom map style, no external tile server. Environment: Open-Meteo. Code is MIT; data terms are stated per layer. No site-wide data license is declared.
+
+### What happens next
+
+Next, we integrate a smarter AI model: upgrade the verifier into a weather-aware model trained on more labeled data, including southern wildfires, so the south stops reading UNAVAILABLE. Then Arabic alerts to wilaya civil protection units, backed by the DGF director's public October 2026 statement that the directorate needs new technologies for early detection, monitoring and rapid intervention. The satellite burn-scar vision track (Sentinel-2 dNBR prototype, already built and tested) stays on the post-submission roadmap.
+
 ## How it works
 
 1. **Ingest** — fresh fire detections from NASA FIRMS, every 30 minutes
