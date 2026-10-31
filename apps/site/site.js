@@ -142,7 +142,7 @@ const S = {
   detail: null, detailPhase: "idle", ai: null, aiPhase: "idle",
   report: null, reportPhase: "idle", reportErr: null, expanded: null,
   env: null, envPhase: "idle", envId: null, envErr: null,
-  showNames: true, forceAllNames: false, labelsShown: 0,
+  showNames: true, forceAllNames: false, labelsShown: 0, wilSearch: "",
   /* One selection model for every view: the wilaya being focused, the incident
      open in the rail, the detection open on the map. They are set together (a
      tap on a dot focuses its wilaya and opens its incident) and cleared
@@ -443,6 +443,17 @@ function renderWilaya() {
     .filter((r) => r.n > 0)
     .sort((a, b) => b.n - a.n);
   cnt.textContent = `${ranked.length} ${T.withData}`;
+  /* Wilaya search: filter ALL wilayas (not just those with detections),
+     by English name, Arabic name, or code. Empty query = ranked list. */
+  const q = (S.wilSearch || "").trim().toLowerCase();
+  const shown = q
+    ? S.wilayas.map((w) => ({ w, n: wilDetections(w.code).length }))
+        .filter((r) => (r.w.name || "").toLowerCase().includes(q)
+          || (r.w.nameAr || "").includes(q)
+          || String(r.w.code).includes(q))
+        .sort((a, b) => b.n - a.n || (a.w.name || "").localeCompare(b.w.name || ""))
+    : ranked;
+  if (q) cnt.textContent = `${shown.length} / ${S.wilayas.length}`;
 
   const hero = S.wilaya && S.wilayaByCode[String(S.wilaya)] ? (() => {
     const w = S.wilayaByCode[String(S.wilaya)];
@@ -463,9 +474,9 @@ function renderWilaya() {
     </div>`;
   })() : `<p class="note">${esc(T.clickWilaya)}</p><div class="rulebox">${esc(T.counting)}</div>`;
 
-  const maxN = ranked.length ? ranked[0].n : 1;
-  const list = ranked.length
-    ? `<ul class="wil-list">${ranked.slice(0, 40).map((r) => {
+  const maxN = shown.length ? Math.max(1, ...shown.map((r) => r.n)) : 1;
+  const list = shown.length
+    ? `<ul class="wil-list">${shown.slice(0, 40).map((r) => {
         const pct = Math.max(6, Math.round((r.n / maxN) * 100));
         const on = String(r.w.code) === String(S.wilaya);
         return `<li data-wil="${esc(r.w.code)}" class="${on ? "on" : ""}">
@@ -474,7 +485,7 @@ function renderWilaya() {
           <span class="v">${r.n}</span></li>`;
       }).join("")}</ul>
       <p class="note small">${esc(T.wilBar)}</p>`
-    : `<p class="note">${esc(T.incEmpty)}</p>`;
+    : `<p class="note">${esc(q ? T.searchEmpty : T.incEmpty)}</p>`;
 
   body.innerHTML = hero + list;
 
@@ -703,6 +714,7 @@ const UI_T = {
     foot: "NUMIDIA EYE — live NASA FIRMS data, AI-verified. Prototype, not an official alert system.",
     toggle: "عربي",
     search: "Search wilayas…",
+    searchEmpty: "No wilaya matches that search.",
   },
   ar: {
     title: "عين نوميديا",
@@ -715,6 +727,7 @@ const UI_T = {
     foot: "عين نوميديا — بيانات ناسا FIRMS مباشرة، مُتحقق منها بالذكاء الاصطناعي. نموذج أولي، وليس نظام إنذار رسمي.",
     toggle: "EN",
     search: "ابحث عن الولايات…",
+    searchEmpty: "لا توجد ولاية مطابقة لهذا البحث.",
     det: "كشوفات",
     incN: "حوادث",
     live: "مباشر الآن",
@@ -883,6 +896,8 @@ function applyLang() {
   if (lis[5]) { const sp = lis[5].querySelector("span"); if (sp) sp.textContent = UI_LANG === "ar" ? "حدود الولاية - اضغط للتركيز" : "Wilaya boundary - click to focus"; }
   const rb = document.getElementById("reset-wil");
   if (rb) rb.textContent = T.reset;
+  const ws = document.getElementById("wil-search");
+  if (ws) ws.placeholder = T.search;
   const aboutPanel = document.querySelector("#tab-about .about-panel");
   if (aboutPanel) {
     if (!ABOUT_EN) ABOUT_EN = aboutPanel.innerHTML;
@@ -1705,6 +1720,10 @@ function focusWilaya(code, opts) {
     }
     map.fitBounds([[wst, s], [e, n]], { padding: 60, maxZoom: 8, duration: 700 });
     }
+  } else if (!nextCode && fly && map && S.wilayas.length) {
+    /* Second tap on the same wilaya: zoom back out to the whole country,
+       so nobody has to spam the zoom-out button. */
+    map.fitBounds(wilayaBounds(), { padding: FIT.padding, maxZoom: FIT.maxZoom, duration: 700 });
   }
   pushWilayas(); pushDetections(); syncAllLabels();
   renderWilaya(); renderStats(); renderChain(); renderIncidents(); renderSelection();
@@ -2081,6 +2100,21 @@ document.getElementById("lang-toggle").addEventListener("click", () => {
   UI_LANG = UI_LANG === "en" ? "ar" : "en";
   applyLang();
 });
+
+/* Wilaya search: live-filter the wilaya list; Enter focuses the first match. */
+(function () {
+  const inp = document.getElementById("wil-search");
+  if (!inp) return;
+  inp.addEventListener("input", () => { S.wilSearch = inp.value; renderWilaya(); });
+  inp.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    const q = (S.wilSearch || "").trim().toLowerCase();
+    if (!q) return;
+    const m = S.wilayas.find((w) => (w.name || "").toLowerCase().includes(q)
+      || (w.nameAr || "").includes(q) || String(w.code).includes(q));
+    if (m) focusWilaya(m.code);
+  });
+})();
 
 /* Theme toggle: light is the default (the pitch design); dark is opt-in
    and remembered in localStorage. Map paints follow the theme. */
