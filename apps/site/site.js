@@ -1393,7 +1393,7 @@ function initMap() {
   map = new maplibregl.Map({
     container: "map",
     style: LIGHT_STYLE,
-    center: [2.5, 28.0], zoom: (window.innerWidth < 768 ? 3.6 : 4.4), minZoom: 3.5, maxZoom: 12,
+    center: [2.5, 28.0], zoom: (window.innerWidth < 768 ? 3.6 : 4.0), minZoom: 3.5, maxZoom: 12,
     attributionControl: false,
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
